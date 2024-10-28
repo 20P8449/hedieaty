@@ -38,16 +38,78 @@ class _MainNavigationState extends State<MainNavigation> {
     MyPledgedGiftsPage(),
   ];
 
+  // Sample notifications list
+  final List<String> _notifications = [
+    "You have a new event invitation.",
+    "Cristiano sent you a gift.",
+    "Bellingham liked your event."
+  ];
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
+  void _showNotifications(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Notifications'),
+          content: Container(
+            width: double.minPositive, // Set the width of the dialog
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _notifications.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(_notifications[index]),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: Stack(
+        children: [
+          _pages[_selectedIndex], // Main content
+          Positioned(
+            right: 20,
+            bottom: 70, // Adjust this value to position it above the nav bar
+            child: GestureDetector(
+              onTap: () => _showNotifications(context),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue, // Set the background color to blue
+                  shape: BoxShape.circle,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0), // Adjust padding as needed
+                  child: Icon(
+                    Icons.notifications,
+                    color: Colors.white, // Icon color
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed, // Ensures labels are always visible
         items: const <BottomNavigationBarItem>[
