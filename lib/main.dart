@@ -32,8 +32,8 @@ class _MainNavigationState extends State<MainNavigation> {
   // List of pages for navigation
   final List<Widget> _pages = [
     HomePage(),
-    EventListPage(),
-    GiftListPage(),
+    EventListPage(friendName: ''), // Placeholder, will be replaced during navigation
+    GiftListPage(eventName: '', gifts: []), // Placeholder, will be replaced during navigation
     ProfilePage(),
     MyPledgedGiftsPage(),
   ];
@@ -58,7 +58,7 @@ class _MainNavigationState extends State<MainNavigation> {
         return AlertDialog(
           title: Text('Notifications'),
           content: Container(
-            width: double.minPositive, // Set the width of the dialog
+            width: double.minPositive,
             child: ListView.builder(
               shrinkWrap: true,
               itemCount: _notifications.length,
@@ -87,22 +87,22 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       body: Stack(
         children: [
-          _pages[_selectedIndex], // Main content
+          _pages[_selectedIndex],
           Positioned(
             right: 20,
-            bottom: 70, // Adjust this value to position it above the nav bar
+            bottom: 70,
             child: GestureDetector(
               onTap: () => _showNotifications(context),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.blue, // Set the background color to blue
+                  color: Colors.blue,
                   shape: BoxShape.circle,
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(12.0), // Adjust padding as needed
+                  padding: const EdgeInsets.all(12.0),
                   child: Icon(
                     Icons.notifications,
-                    color: Colors.white, // Icon color
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -111,7 +111,7 @@ class _MainNavigationState extends State<MainNavigation> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed, // Ensures labels are always visible
+        type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -200,7 +200,13 @@ class HomePage extends StatelessWidget {
                       ? 'Upcoming Events: ${friend['upcomingEvents']}'
                       : 'No Upcoming Events'),
                   onTap: () {
-                    // Navigate to friend's gift list
+                    // Navigate to friend's event list
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EventListPage(friendName: friend['name']),
+                      ),
+                    );
                   },
                 );
               },
@@ -257,7 +263,13 @@ class FriendSearchDelegate extends SearchDelegate {
         return ListTile(
           title: Text(friend['name']),
           onTap: () {
-            // Navigate to selected friend's gift list
+            // Navigate to selected friend's event list
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EventListPage(friendName: friend['name']),
+              ),
+            );
           },
         );
       },
@@ -271,6 +283,65 @@ class GiftDetailsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text('Gift Details')),
       body: Center(child: Text('Gift Details Page')),
+    );
+  }
+}
+
+// EventListPage with friendName parameter
+class EventListPage extends StatelessWidget {
+  final String friendName;
+
+  EventListPage({required this.friendName});
+
+  final List<Map<String, dynamic>> events = [
+    {'name': 'Birthday Party', 'gifts': ['Smartwatch', 'Book']},
+    {'name': 'Wedding', 'gifts': ['Gift Card', 'Flowers']},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('$friendName\'s Events')),
+      body: ListView.builder(
+        itemCount: events.length,
+        itemBuilder: (context, index) {
+          final event = events[index];
+          return ListTile(
+            title: Text(event['name']),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => GiftListPage(eventName: event['name'], gifts: event['gifts']),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// GiftListPage to display gifts associated with an event
+class GiftListPage extends StatelessWidget {
+  final String eventName;
+  final List<String> gifts;
+
+  GiftListPage({required this.eventName, required this.gifts});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('$eventName Gifts')),
+      body: ListView.builder(
+        itemCount: gifts.length,
+        itemBuilder: (context, index) {
+          return ListTile(
+            title: Text(gifts[index]),
+          );
+        },
+      ),
     );
   }
 }
