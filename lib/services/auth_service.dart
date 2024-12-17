@@ -2,15 +2,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user_model.dart';
-import 'package:project/controllers/event_controller.dart';
+import '../controllers/event_controller.dart';
+import '../controllers/gift_controller.dart';
+
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FlutterSecureStorage _secureStorage = FlutterSecureStorage(); // Secure Storage Instance
   final EventController _eventController = EventController();
+  final GiftController _giftController = GiftController();
 
   // Sign Up and return UserModel
-  Future<UserModel?> signUp(String email, String password, String name, String preferences) async {
+  Future<UserModel?> signUp(
+      String email, String password, String name, String preferences) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -29,6 +33,11 @@ class AuthService {
 
         // Add user data to Firestore
         await _firestore.collection('users').doc(user.uid).set(newUser.toMap());
+
+        // Store UID securely after sign-up
+        await _secureStorage.write(key: 'userUID', value: user.uid);
+
+        print("User signed up successfully and UID stored securely: ${user.uid}");
         return newUser;
       }
     } catch (e) {
@@ -63,16 +72,30 @@ class AuthService {
           // Store UID in secure storage
           await _secureStorage.write(key: 'userUID', value: user.uid);
 
-          // Sync events from Firestore to SQLite
+          // Sync Events and Gifts from Firestore to SQLite
           await _eventController.syncEventsFromFirestore();
+          await _giftController.syncGiftsFromFirestore();
 
-          print("User UID stored securely: ${user.uid}");
+          print("User logged in and UID stored securely: ${user.uid}");
           return loggedInUser;
+        } else {
+          print("User data not found in Firestore.");
         }
       }
     } catch (e) {
       print("Error in login: $e");
     }
     return null;
+  }
+
+  // Logout and clear Secure Storage
+  Future<void> logout() async {
+    try {
+      await _auth.signOut();
+      await _secureStorage.delete(key: 'userUID'); // Remove UID from secure storage
+      print("User logged out and UID removed from secure storage.");
+    } catch (e) {
+      print("Error during logout: $e");
+    }
   }
 }
