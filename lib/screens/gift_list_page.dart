@@ -3,6 +3,7 @@ import '../controllers/gift_controller.dart';
 import '../controllers/event_controller.dart';
 import '../models/gift_model.dart';
 import '../models/event_model.dart';
+import 'gift_details_page.dart';
 
 class GiftListPage extends StatefulWidget {
   @override
@@ -15,6 +16,7 @@ class _GiftListPageState extends State<GiftListPage> {
 
   List<GiftModel> gifts = [];
   List<EventModel> events = [];
+  Map<String, String> eventMap = {}; // Map to hold eventFirebaseId -> event name
   String? sortOption;
 
   @override
@@ -32,31 +34,25 @@ class _GiftListPageState extends State<GiftListPage> {
     });
   }
 
-  // Load events for association
+  // Load events and create a map of eventFirebaseId to event name
   Future<void> loadEvents() async {
     final loadedEvents = await _eventController.getAllEvents();
     setState(() {
       events = loadedEvents;
+      eventMap = {for (var e in loadedEvents) e.eventFirebaseId: e.name};
     });
   }
 
-  // Add or Update a gift
-  Future<void> addOrUpdateGift(GiftModel gift) async {
-    if (gift.id == null) {
-      await _giftController.addGift(gift);
-    } else {
-      await _giftController.updateGift(gift);
-    }
+  Future<void> updateGift(GiftModel gift) async {
+    await _giftController.updateGift(gift);
     loadGifts();
   }
 
-  // Delete a gift
   Future<void> deleteGift(int id) async {
     await _giftController.deleteGift(id);
     loadGifts();
   }
 
-  // Publish a gift to Firestore
   Future<void> publishGift(GiftModel gift) async {
     if (gift.eventFirebaseId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -68,36 +64,9 @@ class _GiftListPageState extends State<GiftListPage> {
     loadGifts();
   }
 
-  // Unpublish a gift from Firestore
   Future<void> unpublishGift(GiftModel gift) async {
     await _giftController.unpublishGift(gift);
     loadGifts();
-  }
-
-  // Sort gifts locally
-  void sortGifts() {
-    setState(() {
-      if (sortOption == 'Name') {
-        gifts.sort((a, b) => a.name.compareTo(b.name));
-      } else if (sortOption == 'Category') {
-        gifts.sort((a, b) => a.category.compareTo(b.category));
-      } else if (sortOption == 'Status') {
-        gifts.sort((a, b) => a.status.compareTo(b.status));
-      }
-    });
-  }
-
-  // Show Gift Dialog
-  void showGiftDialog({GiftModel? initialGift}) {
-    showDialog(
-      context: context,
-      builder: (context) => GiftDialog(
-        title: initialGift == null ? 'Add Gift' : 'Edit Gift',
-        initialGift: initialGift,
-        events: events,
-        onSave: (updatedGift) => addOrUpdateGift(updatedGift),
-      ),
-    );
   }
 
   @override
@@ -109,7 +78,7 @@ class _GiftListPageState extends State<GiftListPage> {
           IconButton(
             icon: Icon(Icons.add),
             onPressed: () {
-              showGiftDialog();
+              // Show add gift dialog here (if applicable)
             },
           ),
           DropdownButton<String>(
@@ -124,7 +93,7 @@ class _GiftListPageState extends State<GiftListPage> {
             onChanged: (value) {
               setState(() {
                 sortOption = value;
-                sortGifts();
+                // Sorting logic can be added here
               });
             },
           ),
@@ -136,6 +105,9 @@ class _GiftListPageState extends State<GiftListPage> {
         itemCount: gifts.length,
         itemBuilder: (context, index) {
           final gift = gifts[index];
+          final associatedEventName =
+              eventMap[gift.eventFirebaseId] ?? 'Unknown Event';
+
           return Card(
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
@@ -149,8 +121,7 @@ class _GiftListPageState extends State<GiftListPage> {
                 children: [
                   Text('Category: ${gift.category}'),
                   Text('Status: ${gift.status}'),
-                  if (gift.eventFirebaseId.isNotEmpty)
-                    Text('Associated Event: ${gift.eventFirebaseId}'),
+                  Text('Event: $associatedEventName'),
                 ],
               ),
               trailing: Row(
@@ -159,16 +130,42 @@ class _GiftListPageState extends State<GiftListPage> {
                   IconButton(
                     icon: Icon(Icons.edit),
                     onPressed: () {
-                      showGiftDialog(initialGift: gift);
+                      // Navigate to GiftDetailsPage
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GiftDetailsPage(
+                            gift: {
+                              'id': gift.id,
+                              'name': gift.name,
+                              'description': gift.description,
+                              'category': gift.category,
+                              'price': gift.price,
+                              'status': gift.status,
+                            },
+                            onSave: (updatedGiftData) {
+                              setState(() {
+                                final updatedGift = gift.copyWith(
+                                  name: updatedGiftData['name'],
+                                  description: updatedGiftData['description'],
+                                  category: updatedGiftData['category'],
+                                  price: updatedGiftData['price'],
+                                  status: updatedGiftData['status'],
+                                );
+                                _giftController.updateGift(updatedGift);
+                                loadGifts();
+                              });
+                            },
+                          ),
+                        ),
+                      );
                     },
                   ),
                   IconButton(
                     icon: Icon(Icons.cloud_upload),
                     color: gift.published ? Colors.grey : Colors.blue,
                     onPressed: () {
-                      if (!gift.published) {
-                        publishGift(gift);
-                      }
+                      if (!gift.published) publishGift(gift);
                     },
                     tooltip: 'Publish',
                   ),
@@ -176,9 +173,7 @@ class _GiftListPageState extends State<GiftListPage> {
                     icon: Icon(Icons.cloud_off),
                     color: gift.published ? Colors.red : Colors.grey,
                     onPressed: () {
-                      if (gift.published) {
-                        unpublishGift(gift);
-                      }
+                      if (gift.published) unpublishGift(gift);
                     },
                     tooltip: 'Unpublish',
                   ),
@@ -187,6 +182,7 @@ class _GiftListPageState extends State<GiftListPage> {
                     onPressed: () {
                       deleteGift(gift.id!);
                     },
+                    tooltip: 'Delete',
                   ),
                 ],
               ),
@@ -194,127 +190,6 @@ class _GiftListPageState extends State<GiftListPage> {
           );
         },
       ),
-    );
-  }
-}
-
-class GiftDialog extends StatefulWidget {
-  final String title;
-  final GiftModel? initialGift;
-  final Function(GiftModel) onSave;
-  final List<EventModel> events;
-
-  GiftDialog({
-    required this.title,
-    this.initialGift,
-    required this.onSave,
-    required this.events,
-  });
-
-  @override
-  _GiftDialogState createState() => _GiftDialogState();
-}
-
-class _GiftDialogState extends State<GiftDialog> {
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _categoryController = TextEditingController();
-  final _priceController = TextEditingController();
-  String _status = 'Available';
-  String _selectedEventId = '';
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.initialGift != null) {
-      _nameController.text = widget.initialGift!.name;
-      _descriptionController.text = widget.initialGift!.description;
-      _categoryController.text = widget.initialGift!.category;
-      _priceController.text = widget.initialGift!.price.toString();
-      _status = widget.initialGift!.status;
-      _selectedEventId = widget.initialGift!.eventFirebaseId;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: SingleChildScrollView(
-        child: Column(
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: InputDecoration(labelText: 'Gift Name'),
-            ),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(labelText: 'Description'),
-            ),
-            TextField(
-              controller: _categoryController,
-              decoration: InputDecoration(labelText: 'Category'),
-            ),
-            TextField(
-              controller: _priceController,
-              decoration: InputDecoration(labelText: 'Price'),
-              keyboardType: TextInputType.number,
-            ),
-            DropdownButton<String>(
-              value: _status,
-              items: ['Available', 'Pledged']
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _status = value!;
-                });
-              },
-            ),
-            DropdownButton<String>(
-              value: _selectedEventId.isNotEmpty ? _selectedEventId : null,
-              hint: Text("Select Event"),
-              isExpanded: true,
-              onChanged: (value) {
-                setState(() {
-                  _selectedEventId = value!;
-                });
-              },
-              items: widget.events
-                  .map((event) => DropdownMenuItem(
-                value: event.eventFirebaseId,
-                child: Text(event.name),
-              ))
-                  .toList(),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            widget.onSave(
-              GiftModel(
-                id: widget.initialGift?.id,
-                name: _nameController.text.trim(),
-                description: _descriptionController.text.trim(),
-                category: _categoryController.text.trim(),
-                price: double.tryParse(_priceController.text.trim()) ?? 0.0,
-                status: _status,
-                eventFirebaseId: _selectedEventId,
-                giftFirebaseId: widget.initialGift?.giftFirebaseId ?? '',
-                published: widget.initialGift?.published ?? false,
-              ),
-            );
-            Navigator.of(context).pop();
-          },
-          child: Text('Save'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text('Cancel'),
-        ),
-      ],
     );
   }
 }
