@@ -47,9 +47,15 @@ class ProfilePage extends StatelessWidget {
               title: Text('My Gift Lists'),
               subtitle: Text('View and manage your associated gifts'),
               onTap: () {
+                // Navigate to GiftListPage without requiring event ID
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => GiftListPage()),
+                  MaterialPageRoute(
+                    builder: (context) => GiftListPage(
+                      selectedEventId: '',
+                      selectedEventName: 'All Gifts',
+                    ),
+                  ),
                 );
               },
             ),

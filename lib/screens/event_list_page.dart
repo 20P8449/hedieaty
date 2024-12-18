@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controllers/event_controller.dart';
 import '../models/event_model.dart';
+import 'gift_list_page.dart';
 
 class EventListPage extends StatefulWidget {
   @override
@@ -61,6 +62,18 @@ class _EventListPageState extends State<EventListPage> {
               subtitle: Text(
                 'Date: ${event.date}\nLocation: ${event.location}\nPublished: ${event.published ? "Yes" : "No"}',
               ),
+              onTap: () {
+                // Navigate to GiftListPage filtered by event ID
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GiftListPage(
+                      selectedEventId: event.eventFirebaseId,
+                      selectedEventName: event.name,
+                    ),
+                  ),
+                );
+              },
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -76,7 +89,8 @@ class _EventListPageState extends State<EventListPage> {
                         builder: (context) => EventDialog(
                           title: 'Edit Event',
                           initialEvent: event,
-                          onSave: (updatedEvent) => addOrUpdateEvent(updatedEvent),
+                          onSave: (updatedEvent) =>
+                              addOrUpdateEvent(updatedEvent),
                         ),
                       );
                     },

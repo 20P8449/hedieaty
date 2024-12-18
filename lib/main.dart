@@ -44,7 +44,10 @@ class _MainNavigationState extends State<MainNavigation> {
   final List<Widget> _pages = [
     HomePage(),
     EventListPage(),
-    GiftListPage(),
+    GiftListPage(
+      selectedEventId: '',        // Empty string as default Event ID
+      selectedEventName: 'All Gifts', // Default title for the page
+    ),
     ProfilePage(),
     MyPledgedGiftsPage(),
   ];

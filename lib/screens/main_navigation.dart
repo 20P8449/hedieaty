@@ -1,9 +1,36 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart';
-import 'event_list_page.dart';
-import 'gift_list_page.dart';
-import 'my_pledged_gifts_page.dart';
-import 'profile_page.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:project/screens/home_page.dart';
+import 'package:project/screens/event_list_page.dart';
+import 'package:project/screens/my_pledged_gifts_page.dart';
+import 'package:project/screens/profile_page.dart';
+import 'package:project/screens/auth_page.dart';
+import 'package:project/views/signIn.dart';
+import 'package:project/views/signUp.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(); // Initialize Firebase
+  runApp(HedeiatyApp());
+}
+
+class HedeiatyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Hedeiaty',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: SignInPage(), // Redirect to AuthPage as the default screen
+      routes: {
+        '/home': (context) => MainNavigation(),
+        '/signin': (context) => SignInPage(),
+        '/signUp': (context) => SignUpPage(),
+      },
+    );
+  }
+}
 
 class MainNavigation extends StatefulWidget {
   @override
@@ -13,11 +40,10 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
-  // List of pages for navigation
+  // List of pages for navigation (removed GiftListPage)
   final List<Widget> _pages = [
     HomePage(),
     EventListPage(),
-    GiftListPage(),
     ProfilePage(),
     MyPledgedGiftsPage(),
   ];
@@ -26,7 +52,7 @@ class _MainNavigationState extends State<MainNavigation> {
   final List<String> _notifications = [
     "You have a new event invitation.",
     "Cristiano sent you a gift.",
-    "Bellingham liked your event.",
+    "Bellingham liked your event."
   ];
 
   void _onItemTapped(int index) {
@@ -41,7 +67,7 @@ class _MainNavigationState extends State<MainNavigation> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Notifications'),
-          content: SizedBox(
+          content: Container(
             width: double.minPositive,
             child: ListView.builder(
               shrinkWrap: true,
@@ -104,10 +130,6 @@ class _MainNavigationState extends State<MainNavigation> {
           BottomNavigationBarItem(
             icon: Icon(Icons.event),
             label: 'Events',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.card_giftcard),
-            label: 'Gifts',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
