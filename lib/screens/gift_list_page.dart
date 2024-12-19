@@ -7,11 +7,13 @@ class GiftListPage extends StatefulWidget {
   final String selectedEventId; // Event ID for filtering gifts
   final String selectedEventName;
   final String userId; // User ID to filter gifts by user
+  final String currentUserId; // Current logged-in user ID
 
   GiftListPage({
     required this.selectedEventId,
     required this.selectedEventName,
     required this.userId,
+    required this.currentUserId,
   });
 
   @override
@@ -98,6 +100,8 @@ class _GiftListPageState extends State<GiftListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isOwner = widget.userId == widget.currentUserId;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Gifts for ${widget.selectedEventName}'),
@@ -126,7 +130,8 @@ class _GiftListPageState extends State<GiftListPage> {
                         Text('Status: ${gift.status}'),
                       ],
                     ),
-                    onTap: () {
+                    onTap: isOwner
+                        ? () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -152,8 +157,10 @@ class _GiftListPageState extends State<GiftListPage> {
                           ),
                         ),
                       );
-                    },
-                    trailing: Row(
+                    }
+                        : null,
+                    trailing: isOwner
+                        ? Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
@@ -180,49 +187,51 @@ class _GiftListPageState extends State<GiftListPage> {
                           tooltip: 'Delete',
                         ),
                       ],
-                    ),
+                    )
+                        : null,
                   ),
                 );
               },
             ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GiftDetailsPage(
-                      gift: {
-                        'name': '',
-                        'description': '',
-                        'category': '',
-                        'price': 0.0,
-                        'status': 'Available',
-                      },
-                      onSave: (newGiftData) async {
-                        final newGift = GiftModel(
-                          id: null,
-                          name: newGiftData['name'],
-                          description: newGiftData['description'],
-                          category: newGiftData['category'],
-                          price: newGiftData['price'],
-                          status: newGiftData['status'],
-                          published: false,
-                          eventFirebaseId: widget.selectedEventId,
-                          userId: widget.userId,
-                        );
-                        await addGift(newGift);
-                      },
+          if (isOwner)
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GiftDetailsPage(
+                        gift: {
+                          'name': '',
+                          'description': '',
+                          'category': '',
+                          'price': 0.0,
+                          'status': 'Available',
+                        },
+                        onSave: (newGiftData) async {
+                          final newGift = GiftModel(
+                            id: null,
+                            name: newGiftData['name'],
+                            description: newGiftData['description'],
+                            category: newGiftData['category'],
+                            price: newGiftData['price'],
+                            status: newGiftData['status'],
+                            published: false,
+                            eventFirebaseId: widget.selectedEventId,
+                            userId: widget.userId,
+                          );
+                          await addGift(newGift);
+                        },
+                      ),
                     ),
-                  ),
-                );
-              } catch (e) {
-                print('Error navigating to add gift: $e');
-              }
-            },
-            child: Text('Add New Gift'),
-          ),
+                  );
+                } catch (e) {
+                  print('Error navigating to add gift: $e');
+                }
+              },
+              child: Text('Add New Gift'),
+            ),
         ],
       ),
     );

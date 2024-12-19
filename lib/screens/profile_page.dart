@@ -91,8 +91,8 @@ class _ProfilePageState extends State<ProfilePage> {
             Center(
               child: Text(
                 userName,
-                style:
-                TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
             SizedBox(height: 16),
@@ -105,7 +105,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => EventListPage(userId: userId!),
+                      builder: (context) => EventListPage(
+                        userId: userId!,
+                        currentUserId: userId!, // Pass currentUserId
+                      ),
                     ),
                   );
                 } else {
@@ -124,8 +127,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          MyPledgedGiftsPage(userId: userId!),
+                      builder: (context) => MyPledgedGiftsPage(userId: userId!),
                     ),
                   );
                 } else {

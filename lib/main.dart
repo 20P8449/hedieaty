@@ -68,7 +68,10 @@ class _MainNavigationState extends State<MainNavigation> {
   late final List<Widget> _pages = [
     HomePage(),
     if (currentUserId != null)
-      EventListPage(userId: currentUserId!) // Pass userId to EventListPage
+      EventListPage(
+        userId: currentUserId!,
+        currentUserId: currentUserId!, // Pass currentUserId
+      )
     else
       Center(child: Text("User not authenticated")),
     if (currentUserId != null)
@@ -76,6 +79,7 @@ class _MainNavigationState extends State<MainNavigation> {
         selectedEventId: '', // Empty string as default Event ID
         selectedEventName: 'All Gifts', // Default title for the page
         userId: currentUserId!, // Pass userId to GiftListPage
+        currentUserId: currentUserId!, // Pass currentUserId
       )
     else
       Center(child: Text("User not authenticated")),

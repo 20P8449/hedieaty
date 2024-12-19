@@ -5,8 +5,9 @@ import 'gift_list_page.dart';
 
 class EventListPage extends StatefulWidget {
   final String userId; // User ID to filter events and gifts by user
+  final String currentUserId; // Current logged-in user ID
 
-  EventListPage({required this.userId});
+  EventListPage({required this.userId, required this.currentUserId});
 
   @override
   _EventListPageState createState() => _EventListPageState();
@@ -24,10 +25,16 @@ class _EventListPageState extends State<EventListPage> {
 
   // Load events for the user
   Future<void> loadEvents() async {
-    final loadedEvents = await _eventController.getEventsByUserId(widget.userId);
-    setState(() {
-      events = loadedEvents;
-    });
+    try {
+      final loadedEvents = await _eventController.getEventsByUserId(widget.userId);
+      if (mounted) {
+        setState(() {
+          events = loadedEvents;
+        });
+      }
+    } catch (e) {
+      print('Error loading events: $e');
+    }
   }
 
   // Add or update an event
@@ -54,9 +61,11 @@ class _EventListPageState extends State<EventListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isOwner = widget.userId == widget.currentUserId;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Event List'),
+        title: Text(isOwner ? "My Events" : "Friend's Events"),
       ),
       body: events.isEmpty
           ? Center(child: Text('No events available.'))
@@ -79,11 +88,13 @@ class _EventListPageState extends State<EventListPage> {
                       selectedEventId: event.eventFirebaseId,
                       selectedEventName: event.name,
                       userId: widget.userId, // Pass the userId
+                      currentUserId: widget.currentUserId, // Pass current userId
                     ),
                   ),
                 );
               },
-              trailing: Row(
+              trailing: isOwner
+                  ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Switch(
@@ -99,8 +110,10 @@ class _EventListPageState extends State<EventListPage> {
                           title: 'Edit Event',
                           initialEvent: event,
                           userId: widget.userId, // Pass userId for linking
-                          onSave: (updatedEvent) =>
-                              addOrUpdateEvent(updatedEvent),
+                          onSave: (updatedEvent) async {
+                            await _eventController.updateEvent(updatedEvent);
+                            loadEvents();
+                          },
                         ),
                       );
                     },
@@ -110,24 +123,30 @@ class _EventListPageState extends State<EventListPage> {
                     onPressed: () => deleteEvent(event.id!),
                   ),
                 ],
-              ),
+              )
+                  : null, // Hide options for non-owners
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: isOwner
+          ? FloatingActionButton(
         onPressed: () {
           showDialog(
             context: context,
             builder: (context) => EventDialog(
               title: 'Add Event',
               userId: widget.userId, // Pass userId for linking
-              onSave: (newEvent) => addOrUpdateEvent(newEvent),
+              onSave: (newEvent) async {
+                await _eventController.addEvent(newEvent);
+                loadEvents();
+              },
             ),
           );
         },
         child: Icon(Icons.add),
-      ),
+      )
+          : null, // Hide add button for non-owners
     );
   }
 }

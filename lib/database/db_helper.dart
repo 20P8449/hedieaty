@@ -19,7 +19,7 @@ class DBHelper {
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
     return await openDatabase(
-      join(dbPath, 'app_database1234.db'),
+      join(dbPath, 'app_database12345.db'),
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE users (
@@ -45,17 +45,18 @@ class DBHelper {
         ''');
         await db.execute('''
           CREATE TABLE gifts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            description TEXT,
-            category TEXT,
-            price REAL,
-            status TEXT,
-            eventFirebaseId TEXT,
-            userId TEXT,
-            giftFirebaseId TEXT,
-            published INTEGER
-          )
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT,
+          category TEXT,
+          price REAL NOT NULL,
+          status TEXT,
+          eventFirebaseId TEXT NOT NULL,
+          userId TEXT NOT NULL,
+          giftFirebaseId TEXT UNIQUE,
+          published INTEGER NOT NULL DEFAULT 0
+        );
+
         ''');
       },
       version: 1,

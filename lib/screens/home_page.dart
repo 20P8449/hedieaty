@@ -11,6 +11,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> friends = [];
   bool isLoading = true;
+  String? currentUserId;
 
   @override
   void initState() {
@@ -21,7 +22,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> fetchFriends() async {
     try {
       // Get the current user ID
-      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
       if (currentUserId == null) {
         throw Exception("User not authenticated.");
@@ -29,7 +30,7 @@ class _HomePageState extends State<HomePage> {
 
       // Fetch friends from Firestore via FriendService
       final fetchedFriends =
-      await FriendService.getFriendsFromFirestore(currentUserId);
+      await FriendService.getFriendsFromFirestore(currentUserId!);
       setState(() {
         friends = fetchedFriends;
         isLoading = false;
@@ -68,17 +69,20 @@ class _HomePageState extends State<HomePage> {
         itemBuilder: (context, index) {
           final friend = friends[index];
           return Card(
-            margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            margin:
+            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
               title: Text(friend['name']),
               subtitle: Text(friend['mobile']),
               onTap: () {
-                // Navigate to friend's event list with userId
+                // Navigate to friend's event list with userId and currentUserId
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => EventListPage(
                       userId: friend['id'], // Pass userId
+                      currentUserId:
+                      currentUserId!, // Pass currentUserId
                     ),
                   ),
                 );
@@ -153,8 +157,8 @@ class FriendSearchDelegate extends SearchDelegate {
                       );
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content:
-                          Text("${user['name']} has been added as a friend"),
+                          content: Text(
+                              "${user['name']} has been added as a friend"),
                         ),
                       );
                     } catch (e) {

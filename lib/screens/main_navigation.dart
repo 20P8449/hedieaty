@@ -52,7 +52,10 @@ class _MainNavigationState extends State<MainNavigation> {
   late final List<Widget> _pages = [
     HomePage(),
     if (currentUserId != null)
-      EventListPage(userId: currentUserId!) // Pass userId to EventListPage
+      EventListPage(
+        userId: currentUserId!, // Pass userId to EventListPage
+        currentUserId: currentUserId!, // Pass currentUserId to EventListPage
+      )
     else
       Center(child: Text("User not authenticated")),
     ProfilePage(), // Removed userId as ProfilePage doesn't require it
