@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added to fetch current user ID
 import 'package:project/screens/home_page.dart';
 import 'package:project/screens/event_list_page.dart';
 import 'package:project/screens/gift_list_page.dart';
 import 'package:project/screens/my_pledged_gifts_page.dart';
 import 'package:project/screens/profile_page.dart';
-import 'package:project/screens/auth_page.dart';
-import 'package:project/screens/friends_pledged_gifts_page.dart';
 import 'package:project/views/signIn.dart';
 import 'package:project/views/signUp.dart';
+import '../controllers/friend_controller.dart'; // Import FriendsController
+import '../models/friend_model.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(); // Initialize Firebase
@@ -23,7 +25,7 @@ class HedeiatyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: SignInPage(), // Redirect to AuthPage as the default screen
+      home: SignInPage(), // Redirect to SignInPage as the default screen
       routes: {
         '/home': (context) => MainNavigation(),
         '/signin': (context) => SignInPage(),
@@ -40,22 +42,48 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
+  final FriendController _friendController = FriendController(); // Friends controller instance
+  List<String> _friendsNotifications = []; // Notifications for friends
+  String? currentUserId;
 
-  final List<Widget> _pages = [
+  @override
+  void initState() {
+    super.initState();
+    currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    _loadFriendsNotifications(); // Load friends' notifications dynamically
+  }
+
+  // Fetch notifications from friends
+  Future<void> _loadFriendsNotifications() async {
+    if (currentUserId == null) return; // If user is not authenticated, skip
+    List<FriendModel> friends = await _friendController.getFriends(currentUserId!);
+    setState(() {
+      _friendsNotifications = friends
+          .map((friend) => "Your friend ${friend.friendId} added new events or gifts.")
+          .toList();
+    });
+  }
+
+  // List of pages for navigation
+  late final List<Widget> _pages = [
     HomePage(),
-    EventListPage(),
-    GiftListPage(
-      selectedEventId: '',        // Empty string as default Event ID
-      selectedEventName: 'All Gifts', // Default title for the page
-    ),
+    if (currentUserId != null)
+      EventListPage(userId: currentUserId!) // Pass userId to EventListPage
+    else
+      Center(child: Text("User not authenticated")),
+    if (currentUserId != null)
+      GiftListPage(
+        selectedEventId: '', // Empty string as default Event ID
+        selectedEventName: 'All Gifts', // Default title for the page
+        userId: currentUserId!, // Pass userId to GiftListPage
+      )
+    else
+      Center(child: Text("User not authenticated")),
     ProfilePage(),
-    MyPledgedGiftsPage(),
-  ];
-
-  final List<String> _notifications = [
-    "You have a new event invitation.",
-    "Cristiano sent you a gift.",
-    "Bellingham liked your event."
+    if (currentUserId != null)
+      MyPledgedGiftsPage(userId: currentUserId!) // Pass userId to MyPledgedGiftsPage
+    else
+      Center(child: Text("User not authenticated")),
   ];
 
   void _onItemTapped(int index) {
@@ -69,15 +97,17 @@ class _MainNavigationState extends State<MainNavigation> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Notifications'),
+          title: Text('Friend Notifications'),
           content: Container(
             width: double.minPositive,
-            child: ListView.builder(
+            child: _friendsNotifications.isEmpty
+                ? Text('No notifications from friends yet.')
+                : ListView.builder(
               shrinkWrap: true,
-              itemCount: _notifications.length,
+              itemCount: _friendsNotifications.length,
               itemBuilder: (context, index) {
                 return ListTile(
-                  title: Text(_notifications[index]),
+                  title: Text(_friendsNotifications[index]),
                 );
               },
             ),

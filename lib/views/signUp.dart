@@ -12,6 +12,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _preferencesController = TextEditingController();
+  final _mobileController = TextEditingController(); // Added for mobile phone
   final UserController _userController = UserController();
   bool _isLoading = false;
 
@@ -26,6 +27,7 @@ class _SignUpPageState extends State<SignUpPage> {
         _passwordController.text.trim(),
         _nameController.text.trim(),
         _preferencesController.text.trim(),
+        _mobileController.text.trim(), // Pass mobile phone
       );
 
       if (user != null) {
@@ -49,15 +51,40 @@ class _SignUpPageState extends State<SignUpPage> {
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(controller: _nameController, decoration: InputDecoration(labelText: 'Name')),
-              TextFormField(controller: _emailController, decoration: InputDecoration(labelText: 'Email')),
-              TextFormField(controller: _passwordController, decoration: InputDecoration(labelText: 'Password'), obscureText: true),
-              TextFormField(controller: _preferencesController, decoration: InputDecoration(labelText: 'Preferences')),
-              SizedBox(height: 20),
-              _isLoading ? CircularProgressIndicator() : ElevatedButton(onPressed: _signUp, child: Text('Sign Up')),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(labelText: 'Name'),
+                  validator: (value) => value!.isEmpty ? 'Name is required' : null,
+                ),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(labelText: 'Email'),
+                  validator: (value) => value!.isEmpty ? 'Email is required' : null,
+                ),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(labelText: 'Password'),
+                  obscureText: true,
+                  validator: (value) => value!.length < 6 ? 'Password must be at least 6 characters' : null,
+                ),
+                TextFormField(
+                  controller: _mobileController,
+                  decoration: InputDecoration(labelText: 'Mobile Phone'),
+                  validator: (value) => value!.isEmpty ? 'Mobile phone is required' : null,
+                ),
+                TextFormField(
+                  controller: _preferencesController,
+                  decoration: InputDecoration(labelText: 'Preferences'),
+                ),
+                SizedBox(height: 20),
+                _isLoading
+                    ? CircularProgressIndicator()
+                    : ElevatedButton(onPressed: _signUp, child: Text('Sign Up')),
+              ],
+            ),
           ),
         ),
       ),

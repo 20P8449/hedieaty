@@ -2,13 +2,15 @@ class UserModel {
   final String name;
   final String email;
   final String firebaseId;
-  final String preferences; // Added preferences field
+  final String preferences;
+  final String mobile; // Added mobile field
 
   UserModel({
     required this.name,
     required this.email,
     required this.firebaseId,
     required this.preferences,
+    required this.mobile,
   });
 
   // Convert to Map for SQLite
@@ -18,6 +20,7 @@ class UserModel {
       'email': email,
       'firebaseId': firebaseId,
       'preferences': preferences,
+      'mobile': mobile, // Added mobile to map
     };
   }
 
@@ -28,6 +31,7 @@ class UserModel {
       email: map['email'],
       firebaseId: map['firebaseId'],
       preferences: map['preferences'],
+      mobile: map['mobile'], // Added mobile from map
     );
   }
 }

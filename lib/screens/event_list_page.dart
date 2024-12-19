@@ -4,6 +4,10 @@ import '../models/event_model.dart';
 import 'gift_list_page.dart';
 
 class EventListPage extends StatefulWidget {
+  final String userId; // User ID to filter events and gifts by user
+
+  EventListPage({required this.userId});
+
   @override
   _EventListPageState createState() => _EventListPageState();
 }
@@ -18,13 +22,15 @@ class _EventListPageState extends State<EventListPage> {
     loadEvents();
   }
 
+  // Load events for the user
   Future<void> loadEvents() async {
-    final loadedEvents = await _eventController.getAllEvents();
+    final loadedEvents = await _eventController.getEventsByUserId(widget.userId);
     setState(() {
       events = loadedEvents;
     });
   }
 
+  // Add or update an event
   Future<void> addOrUpdateEvent(EventModel event) async {
     if (event.id == null) {
       await _eventController.addEvent(event);
@@ -34,11 +40,13 @@ class _EventListPageState extends State<EventListPage> {
     loadEvents();
   }
 
+  // Toggle event's published status
   Future<void> togglePublishedStatus(EventModel event) async {
     await _eventController.togglePublished(event);
     loadEvents();
   }
 
+  // Delete an event
   Future<void> deleteEvent(int id) async {
     await _eventController.deleteEvent(id);
     loadEvents();
@@ -63,13 +71,14 @@ class _EventListPageState extends State<EventListPage> {
                 'Date: ${event.date}\nLocation: ${event.location}\nPublished: ${event.published ? "Yes" : "No"}',
               ),
               onTap: () {
-                // Navigate to GiftListPage filtered by event ID
+                // Navigate to GiftListPage filtered by event ID and user ID
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => GiftListPage(
                       selectedEventId: event.eventFirebaseId,
                       selectedEventName: event.name,
+                      userId: widget.userId, // Pass the userId
                     ),
                   ),
                 );
@@ -89,6 +98,7 @@ class _EventListPageState extends State<EventListPage> {
                         builder: (context) => EventDialog(
                           title: 'Edit Event',
                           initialEvent: event,
+                          userId: widget.userId, // Pass userId for linking
                           onSave: (updatedEvent) =>
                               addOrUpdateEvent(updatedEvent),
                         ),
@@ -111,6 +121,7 @@ class _EventListPageState extends State<EventListPage> {
             context: context,
             builder: (context) => EventDialog(
               title: 'Add Event',
+              userId: widget.userId, // Pass userId for linking
               onSave: (newEvent) => addOrUpdateEvent(newEvent),
             ),
           );
@@ -125,8 +136,14 @@ class EventDialog extends StatefulWidget {
   final Function(EventModel) onSave;
   final String title;
   final EventModel? initialEvent;
+  final String userId; // Added userId for linking events to the user
 
-  EventDialog({required this.onSave, required this.title, this.initialEvent});
+  EventDialog({
+    required this.onSave,
+    required this.title,
+    this.initialEvent,
+    required this.userId, // Ensure userId is passed
+  });
 
   @override
   _EventDialogState createState() => _EventDialogState();
@@ -156,10 +173,22 @@ class _EventDialogState extends State<EventDialog> {
       content: SingleChildScrollView(
         child: Column(
           children: [
-            TextField(controller: _nameController, decoration: InputDecoration(labelText: 'Name')),
-            TextField(controller: _dateController, decoration: InputDecoration(labelText: 'Date')),
-            TextField(controller: _locationController, decoration: InputDecoration(labelText: 'Location')),
-            TextField(controller: _descriptionController, decoration: InputDecoration(labelText: 'Description')),
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(labelText: 'Name'),
+            ),
+            TextField(
+              controller: _dateController,
+              decoration: InputDecoration(labelText: 'Date'),
+            ),
+            TextField(
+              controller: _locationController,
+              decoration: InputDecoration(labelText: 'Location'),
+            ),
+            TextField(
+              controller: _descriptionController,
+              decoration: InputDecoration(labelText: 'Description'),
+            ),
           ],
         ),
       ),
@@ -172,7 +201,7 @@ class _EventDialogState extends State<EventDialog> {
               date: _dateController.text.trim(),
               location: _locationController.text.trim(),
               description: _descriptionController.text.trim(),
-              userId: widget.initialEvent?.userId ?? '',
+              userId: widget.userId, // Link the event to the userId
               eventFirebaseId: widget.initialEvent?.eventFirebaseId ?? '',
               published: widget.initialEvent?.published ?? false,
             );
@@ -180,6 +209,12 @@ class _EventDialogState extends State<EventDialog> {
             Navigator.of(context).pop();
           },
           child: Text('Save'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: Text('Cancel'),
         ),
       ],
     );

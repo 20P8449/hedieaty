@@ -9,14 +9,11 @@ class EventController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
-
   // Sync Events from Firestore to Local SQLite
   Future<void> syncEventsFromFirestore() async {
     try {
       // Retrieve user UID from Secure Storage
       String? userUID = await _secureStorage.read(key: 'userUID');
-      print("aaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-      print(userUID);
       if (userUID == null) {
         print('User UID not found. Cannot sync events.');
         return;
@@ -31,20 +28,17 @@ class EventController {
       // Convert Firestore documents to EventModel and insert/update SQLite
       for (var doc in querySnapshot.docs) {
         EventModel event = EventModel(
-          name: doc['name'],
-          date: doc['date'],
-          location: doc['location'],
-          description: doc['description'],
-          userId: doc['userId'],
+          name: doc['name'] ?? '',
+          date: doc['date'] ?? '',
+          location: doc['location'] ?? '',
+          description: doc['description'] ?? '',
+          userId: doc['userId'] ?? '',
           eventFirebaseId: doc.id,
           published: (doc['published'] is bool)
               ? doc['published']
-              : doc['published'] == 1, // Handles int -> bool conversion
+              : (doc['published'] == 1),
         );
 
-        print(event.toMap());
-
-        // Insert or Update event in SQLite
         await _insertOrUpdateEvent(event);
       }
 
@@ -78,16 +72,52 @@ class EventController {
       );
     }
   }
+
   // Add Event
   Future<void> addEvent(EventModel event) async {
     final db = await _dbHelper.database;
-    await db.insert('events', event.toMap());
+
+    // Validate user ID
+    if (event.userId.isEmpty) {
+      throw Exception("User ID is required to add an event.");
+    }
+
+    // Insert event into SQLite
+    final eventId = await db.insert(
+      'events',
+      event.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+
+    // Add event to Firestore
+    try {
+      final eventData = event.toMap();
+      final docRef = await _firestore.collection('events').add(eventData);
+      final eventFirebaseId = docRef.id;
+
+      // Update SQLite with Firestore ID
+      await db.update(
+        'events',
+        {'eventFirebaseId': eventFirebaseId},
+        where: 'id = ?',
+        whereArgs: [eventId],
+      );
+
+      print('Event added successfully to Firestore and SQLite.');
+    } catch (e) {
+      print('Error adding event to Firestore: $e');
+      throw e;
+    }
   }
 
-  // Fetch All Events
-  Future<List<EventModel>> getAllEvents() async {
+  // Fetch Events by User ID
+  Future<List<EventModel>> getEventsByUserId(String userId) async {
     final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> result = await db.query('events');
+    final List<Map<String, dynamic>> result = await db.query(
+      'events',
+      where: 'userId = ?',
+      whereArgs: [userId],
+    );
     return result.map((e) => EventModel.fromMap(e)).toList();
   }
 
@@ -100,8 +130,9 @@ class EventController {
       where: 'id = ?',
       whereArgs: [event.id],
     );
-    print(event.published);
-    if(event.published== true){
+
+    if (event.published) {
+      // Update event in Firestore
       await _firestore
           .collection('events')
           .doc(event.eventFirebaseId)
@@ -134,56 +165,35 @@ class EventController {
   // Publish Event to Firestore
   Future<void> _publishEventToFirestore(EventModel event) async {
     try {
-      // Retrieve user UID from secure storage
       String? userUID = await _secureStorage.read(key: 'userUID');
       if (userUID == null) {
         print('User UID not found in secure storage.');
         return;
       }
 
-      // Prepare event data
-      Map<String, dynamic> eventData = {
-        'name': event.name,
-        'date': event.date,
-        'location': event.location,
-        'description': event.description,
+      final eventData = {
+        ...event.toMap(),
         'userId': userUID,
         'published': true,
       };
 
       if (event.eventFirebaseId.isNotEmpty) {
         // Update existing event in Firestore
-        await _firestore
-            .collection('events')
-            .doc(event.eventFirebaseId)
-            .set(eventData);
-
-        // Update local SQLite to confirm published status
-        await updateEvent(event.copyWith(
-          published: true,
-          userId: userUID,
-        ));
-
+        await _firestore.collection('events').doc(event.eventFirebaseId).set(eventData);
         print('Event updated in Firestore with ID: ${event.eventFirebaseId}');
       } else {
         // Create new document in Firestore
-        DocumentReference docRef =
-        await _firestore.collection('events').add(eventData);
-
-        // Update eventFirebaseId and userId in local SQLite
+        final docRef = await _firestore.collection('events').add(eventData);
         await updateEvent(event.copyWith(
-          published: true,
           eventFirebaseId: docRef.id,
-          userId: userUID,
+          published: true,
         ));
-
         print('Event published to Firestore with new ID: ${docRef.id}');
       }
     } catch (e) {
       print('Error publishing event to Firestore: $e');
     }
   }
-
 
   // Remove Event from Firestore
   Future<void> _removeEventFromFirestore(EventModel event) async {
@@ -193,13 +203,8 @@ class EventController {
         return;
       }
 
-      // Delete event from Firestore
       await _firestore.collection('events').doc(event.eventFirebaseId).delete();
-
-      // Clear eventFirebaseId and userId in local SQLite
-      await updateEvent(event.copyWith(
-        published: false, // Update published to true
-      ));
+      await updateEvent(event.copyWith(published: false));
 
       print('Event removed from Firestore with ID: ${event.eventFirebaseId}');
     } catch (e) {
@@ -210,12 +215,12 @@ class EventController {
   // Delete Event
   Future<void> deleteEvent(int id) async {
     final db = await _dbHelper.database;
-    // Fetch event to check if published
-    EventModel? event = await getEventById(id);
+    final event = await getEventById(id);
+
     if (event != null && event.published && event.eventFirebaseId.isNotEmpty) {
-      // Remove from Firestore if published
       await _removeEventFromFirestore(event);
     }
+
     await db.delete('events', where: 'id = ?', whereArgs: [id]);
   }
 

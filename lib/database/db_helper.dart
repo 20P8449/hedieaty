@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/user_model.dart';
@@ -18,7 +19,7 @@ class DBHelper {
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
     return await openDatabase(
-      join(dbPath, 'app_database111223.db'),
+      join(dbPath, 'app_database1234.db'),
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE users (
@@ -26,6 +27,7 @@ class DBHelper {
             name TEXT,
             email TEXT,
             firebaseId TEXT,
+            mobile TEXT, -- Added mobile field
             preferences TEXT
           )
         ''');
@@ -41,7 +43,6 @@ class DBHelper {
             published INTEGER
           )
         ''');
-        // Create gifts table
         await db.execute('''
           CREATE TABLE gifts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +78,17 @@ class DBHelper {
     return null;
   }
 
-  // Update User Preferences
+  // Fetch User by Mobile Phone in SQLite
+  Future<UserModel?> getUserByMobile(String mobile) async {
+    final db = await database;
+    final result = await db.query('users', where: 'mobile = ?', whereArgs: [mobile]);
+    if (result.isNotEmpty) {
+      return UserModel.fromMap(result.first);
+    }
+    return null;
+  }
+
+  // Update User Preferences in SQLite
   Future<void> updateUserPreferences(String firebaseId, String preferences) async {
     final db = await database;
     await db.update(
@@ -86,5 +97,33 @@ class DBHelper {
       where: 'firebaseId = ?',
       whereArgs: [firebaseId],
     );
+  }
+
+  // Search for a User in Firestore by Mobile Phone
+  Future<DocumentSnapshot?> searchUserByPhone(String phone) async {
+    final query = await FirebaseFirestore.instance
+        .collection('users')
+        .where('mobile', isEqualTo: phone)
+        .get();
+
+    if (query.docs.isNotEmpty) {
+      return query.docs.first;
+    }
+    return null;
+  }
+
+  // Add Friend to Firestore
+  Future<void> addFriend(String myUid, String friendUid) async {
+    final firestore = FirebaseFirestore.instance;
+
+    // Update my friends array
+    await firestore.collection('users').doc(myUid).update({
+      'friends': FieldValue.arrayUnion([friendUid]),
+    });
+
+    // Update friend's friends array
+    await firestore.collection('users').doc(friendUid).update({
+      'friends': FieldValue.arrayUnion([myUid]),
+    });
   }
 }

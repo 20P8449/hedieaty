@@ -1,43 +1,52 @@
 import 'package:flutter/material.dart';
+import '../controllers/gift_controller.dart';
+import '../models/gift_model.dart';
 
 class MyPledgedGiftsPage extends StatefulWidget {
+  final String userId; // User ID to filter gifts
+
+  MyPledgedGiftsPage({required this.userId});
+
   @override
   _MyPledgedGiftsPageState createState() => _MyPledgedGiftsPageState();
 }
 
 class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
-  final List<Map<String, dynamic>> pledgedGifts = [
-    {
-      'name': 'Headphones',
-      'friend': 'John Doe',
-      'dueDate': '2023-12-01',
-      'status': 'Pending'
-    },
-    {
-      'name': 'Smartwatch',
-      'friend': 'Jane Smith',
-      'dueDate': '2024-01-15',
-      'status': 'Pending'
-    },
-    {
-      'name': 'Book',
-      'friend': 'Emily Johnson',
-      'dueDate': '2023-11-10',
-      'status': 'Completed'
-    },
-  ];
+  final GiftController _giftController = GiftController();
+  List<GiftModel> pledgedGifts = [];
 
-  void editPledgedGift(int index, Map<String, dynamic> updatedGift) {
-    setState(() {
-      pledgedGifts[index] = updatedGift;
-    });
+  @override
+  void initState() {
+    super.initState();
+    loadPledgedGifts();
+  }
+
+  // Fetch pledged gifts dynamically
+  Future<void> loadPledgedGifts() async {
+    try {
+      final allGifts = await _giftController.getAllGifts(widget.userId); // Pass userId
+      setState(() {
+        pledgedGifts =
+            allGifts.where((gift) => gift.status == 'Pledged').toList();
+      });
+    } catch (e) {
+      print('Error loading pledged gifts: $e');
+    }
+  }
+
+  // Update a pledged gift
+  Future<void> updatePledgedGift(GiftModel updatedGift) async {
+    await _giftController.updateGift(updatedGift);
+    loadPledgedGifts();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('My Pledged Gifts')),
-      body: ListView.builder(
+      body: pledgedGifts.isEmpty
+          ? Center(child: Text('No pledged gifts available.'))
+          : ListView.builder(
         itemCount: pledgedGifts.length,
         itemBuilder: (context, index) {
           final gift = pledgedGifts[index];
@@ -45,28 +54,23 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
               leading: Icon(Icons.card_giftcard, color: Colors.blue),
-              title: Text(gift['name']),
-              subtitle: Text('For: ${gift['friend']} - Due: ${gift['dueDate']}'),
-              trailing: gift['status'] == 'Pending'
-                  ? IconButton(
+              title: Text(gift.name),
+              subtitle: Text(
+                'Due Date: ${gift.description}', // Assume description holds the due date
+              ),
+              trailing: IconButton(
                 icon: Icon(Icons.edit),
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (context) => EditGiftDialog(
+                    builder: (context) => EditPledgedGiftDialog(
                       gift: gift,
-                      onSave: (updatedGift) =>
-                          editPledgedGift(index, updatedGift),
+                      onSave: (updatedGift) {
+                        updatePledgedGift(updatedGift);
+                      },
                     ),
                   );
                 },
-              )
-                  : Text(
-                'Completed',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
               ),
             ),
           );
@@ -76,29 +80,27 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
   }
 }
 
-class EditGiftDialog extends StatefulWidget {
-  final Map<String, dynamic> gift;
-  final Function(Map<String, dynamic>) onSave;
+class EditPledgedGiftDialog extends StatefulWidget {
+  final GiftModel gift;
+  final Function(GiftModel) onSave;
 
-  EditGiftDialog({required this.gift, required this.onSave});
+  EditPledgedGiftDialog({required this.gift, required this.onSave});
 
   @override
-  _EditGiftDialogState createState() => _EditGiftDialogState();
+  _EditPledgedGiftDialogState createState() => _EditPledgedGiftDialogState();
 }
 
-class _EditGiftDialogState extends State<EditGiftDialog> {
+class _EditPledgedGiftDialogState extends State<EditPledgedGiftDialog> {
   final _nameController = TextEditingController();
-  final _friendController = TextEditingController();
-  final _dueDateController = TextEditingController();
-  String _status = 'Pending';
+  final _descriptionController = TextEditingController();
+  String _status = 'Pledged';
 
   @override
   void initState() {
     super.initState();
-    _nameController.text = widget.gift['name'];
-    _friendController.text = widget.gift['friend'];
-    _dueDateController.text = widget.gift['dueDate'];
-    _status = widget.gift['status'];
+    _nameController.text = widget.gift.name;
+    _descriptionController.text = widget.gift.description;
+    _status = widget.gift.status;
   }
 
   @override
@@ -113,12 +115,8 @@ class _EditGiftDialogState extends State<EditGiftDialog> {
             decoration: InputDecoration(labelText: 'Gift Name'),
           ),
           TextField(
-            controller: _friendController,
-            decoration: InputDecoration(labelText: 'Friend Name'),
-          ),
-          TextField(
-            controller: _dueDateController,
-            decoration: InputDecoration(labelText: 'Due Date (YYYY-MM-DD)'),
+            controller: _descriptionController,
+            decoration: InputDecoration(labelText: 'Due Date'),
           ),
           DropdownButton<String>(
             value: _status,
@@ -127,7 +125,7 @@ class _EditGiftDialogState extends State<EditGiftDialog> {
                 _status = newValue!;
               });
             },
-            items: <String>['Pending', 'Completed']
+            items: ['Pledged', 'Available']
                 .map<DropdownMenuItem<String>>((String value) {
               return DropdownMenuItem<String>(
                 value: value,
@@ -140,12 +138,11 @@ class _EditGiftDialogState extends State<EditGiftDialog> {
       actions: [
         TextButton(
           onPressed: () {
-            final updatedGift = {
-              'name': _nameController.text.trim(),
-              'friend': _friendController.text.trim(),
-              'dueDate': _dueDateController.text.trim(),
-              'status': _status,
-            };
+            final updatedGift = widget.gift.copyWith(
+              name: _nameController.text.trim(),
+              description: _descriptionController.text.trim(),
+              status: _status,
+            );
             widget.onSave(updatedGift);
             Navigator.of(context).pop();
           },

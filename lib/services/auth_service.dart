@@ -14,7 +14,7 @@ class AuthService {
 
   // Sign Up and return UserModel
   Future<UserModel?> signUp(
-      String email, String password, String name, String preferences) async {
+      String email, String password, String name, String preferences, String mobile) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -29,6 +29,7 @@ class AuthService {
           email: email,
           firebaseId: user.uid,
           preferences: preferences,
+          mobile: mobile, // Added mobile field
         );
 
         // Add user data to Firestore
@@ -67,6 +68,7 @@ class AuthService {
             email: doc.data()?['email'] ?? '',
             firebaseId: user.uid,
             preferences: doc.data()?['preferences'] ?? '',
+            mobile: doc.data()?['mobile'] ?? '', // Added mobile field
           );
 
           // Store UID in secure storage
@@ -74,7 +76,7 @@ class AuthService {
 
           // Sync Events and Gifts from Firestore to SQLite
           await _eventController.syncEventsFromFirestore();
-          await _giftController.syncGiftsFromFirestore();
+          await _giftController.syncGiftsFromFirestore(user.uid); // Pass userId here
 
           print("User logged in and UID stored securely: ${user.uid}");
           return loggedInUser;
@@ -97,5 +99,29 @@ class AuthService {
     } catch (e) {
       print("Error during logout: $e");
     }
+  }
+
+  // Fetch the current user's UID
+  Future<String?> getCurrentUserId() async {
+    try {
+      User? currentUser = _auth.currentUser;
+      return currentUser?.uid;
+    } catch (e) {
+      print("Error fetching current user ID: $e");
+      return null;
+    }
+  }
+
+  // Fetch the user's profile image URL from Firestore
+  Future<String?> getUserProfileImage(String firebaseId) async {
+    try {
+      final doc = await _firestore.collection('users').doc(firebaseId).get();
+      if (doc.exists) {
+        return doc.data()?['profilePic']; // Replace 'profilePic' with your Firestore field name
+      }
+    } catch (e) {
+      print("Error fetching user profile image: $e");
+    }
+    return null;
   }
 }

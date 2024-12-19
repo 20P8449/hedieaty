@@ -13,10 +13,8 @@ class GiftController {
   Future<void> addGift(GiftModel gift) async {
     final db = await _dbHelper.database;
 
-    // Validate that eventFirebaseId is provided
-    if (gift.eventFirebaseId.isEmpty) {
-      print('Error: Event ID must be associated with the gift.');
-      throw Exception("Event ID is required for adding a gift.");
+    if (gift.eventFirebaseId.isEmpty || gift.userId.isEmpty) {
+      throw Exception("Event ID and User ID are required for adding a gift.");
     }
 
     await db.insert(
@@ -24,12 +22,17 @@ class GiftController {
       gift.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    print('Gift added: ${gift.name}, Event ID: ${gift.eventFirebaseId}');
+    print('Gift added: ${gift.name}, Event ID: ${gift.eventFirebaseId}, User ID: ${gift.userId}');
   }
 
   // Update an existing gift in SQLite
   Future<void> updateGift(GiftModel gift) async {
     final db = await _dbHelper.database;
+
+    if (gift.id == null) {
+      throw Exception("Gift ID is required for updating.");
+    }
+
     await db.update(
       'gifts',
       gift.toMap(),
@@ -42,8 +45,9 @@ class GiftController {
   // Delete a gift from SQLite and Firestore
   Future<void> deleteGift(int id) async {
     final db = await _dbHelper.database;
+
     try {
-      GiftModel? gift = await getGiftById(id);
+      final gift = await getGiftById(id);
 
       if (gift != null && gift.giftFirebaseId.isNotEmpty) {
         await _firestore.collection('gifts').doc(gift.giftFirebaseId).delete();
@@ -54,42 +58,70 @@ class GiftController {
       print('Gift deleted from SQLite with ID: $id');
     } catch (e) {
       print('Error deleting gift: $e');
+      throw Exception("Error deleting gift: $e");
     }
   }
 
-  // Fetch all gifts from SQLite
-  Future<List<GiftModel>> getAllGifts() async {
+  // Fetch all gifts from SQLite for a specific user
+  Future<List<GiftModel>> getAllGifts(String userId) async {
     final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> result = await db.query('gifts');
-    return result.map((e) => GiftModel.fromMap(e)).toList();
+
+    try {
+      final List<Map<String, dynamic>> result = await db.query(
+        'gifts',
+        where: 'userId = ?',
+        whereArgs: [userId],
+      );
+      return result.map((e) => GiftModel.fromMap(e)).toList();
+    } catch (e) {
+      print('Error fetching gifts: $e');
+      throw Exception("Error fetching gifts: $e");
+    }
+  }
+
+  // Fetch gifts filtered by eventFirebaseId and userId
+  Future<List<GiftModel>> getGiftsByEventAndUser(String eventFirebaseId, String userId) async {
+    final db = await _dbHelper.database;
+
+    try {
+      final List<Map<String, dynamic>> result = await db.query(
+        'gifts',
+        where: 'eventFirebaseId = ? AND userId = ?',
+        whereArgs: [eventFirebaseId, userId],
+      );
+      return result.map((e) => GiftModel.fromMap(e)).toList();
+    } catch (e) {
+      print('Error fetching gifts by event and user: $e');
+      throw Exception("Error fetching gifts by event and user: $e");
+    }
   }
 
   // Get a gift by ID
   Future<GiftModel?> getGiftById(int id) async {
     final db = await _dbHelper.database;
-    final result = await db.query('gifts', where: 'id = ?', whereArgs: [id]);
-    if (result.isNotEmpty) {
-      return GiftModel.fromMap(result.first);
+
+    try {
+      final result = await db.query('gifts', where: 'id = ?', whereArgs: [id]);
+      if (result.isNotEmpty) {
+        return GiftModel.fromMap(result.first);
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching gift by ID: $e');
+      throw Exception("Error fetching gift by ID: $e");
     }
-    return null;
   }
 
-  // Sync Gifts from Firestore to SQLite
-  Future<void> syncGiftsFromFirestore() async {
+  // Sync gifts from Firestore to SQLite for a specific user
+  Future<void> syncGiftsFromFirestore(String userId) async {
     try {
-      String? userUID = await _secureStorage.read(key: 'userUID');
-      if (userUID == null) {
-        print('User UID not found. Cannot sync gifts.');
-        return;
-      }
-
-      QuerySnapshot querySnapshot = await _firestore
+      final querySnapshot = await _firestore
           .collection('gifts')
-          .where('userId', isEqualTo: userUID)
+          .where('userId', isEqualTo: userId)
           .get();
 
       for (var doc in querySnapshot.docs) {
-        GiftModel gift = GiftModel(
+        final gift = GiftModel(
           name: doc['name'] ?? '',
           description: doc['description'] ?? '',
           category: doc['category'] ?? '',
@@ -98,57 +130,61 @@ class GiftController {
           userId: doc['userId'] ?? '',
           giftFirebaseId: doc.id,
           eventFirebaseId: doc['eventFirebaseId'] ?? '',
-          published: (doc['published'] is bool) ? doc['published'] : (doc['published'] == 1),
+          published: doc['published'] ?? false,
         );
 
         await _insertOrUpdateGift(gift);
       }
 
-      print('Gifts synchronized from Firestore to SQLite.');
+      print('Gifts synchronized from Firestore to SQLite for User ID: $userId.');
     } catch (e) {
       print('Error syncing gifts from Firestore: $e');
+      throw Exception("Error syncing gifts from Firestore: $e");
     }
   }
 
-  // Insert or Update Gift in SQLite
+  // Insert or update a gift in SQLite
   Future<void> _insertOrUpdateGift(GiftModel gift) async {
     final db = await _dbHelper.database;
 
-    final existingGifts = await db.query(
-      'gifts',
-      where: 'giftFirebaseId = ?',
-      whereArgs: [gift.giftFirebaseId],
-    );
-
-    if (existingGifts.isEmpty) {
-      await db.insert('gifts', gift.toMap());
-      print('Inserted gift: ${gift.name}');
-    } else {
-      await db.update(
+    try {
+      final existingGifts = await db.query(
         'gifts',
-        gift.toMap(),
         where: 'giftFirebaseId = ?',
         whereArgs: [gift.giftFirebaseId],
       );
-      print('Updated gift: ${gift.name}');
+
+      if (existingGifts.isEmpty) {
+        await db.insert('gifts', gift.toMap());
+        print('Inserted gift: ${gift.name}');
+      } else {
+        await db.update(
+          'gifts',
+          gift.toMap(),
+          where: 'giftFirebaseId = ?',
+          whereArgs: [gift.giftFirebaseId],
+        );
+        print('Updated gift: ${gift.name}');
+      }
+    } catch (e) {
+      print('Error inserting or updating gift: $e');
+      throw Exception("Error inserting or updating gift: $e");
     }
   }
 
-  // Publish Gift to Firestore
+  // Publish a gift to Firestore
   Future<void> publishGift(GiftModel gift) async {
+    if (gift.eventFirebaseId.isEmpty) {
+      throw Exception("Event ID is required to publish the gift.");
+    }
+
     try {
-      if (gift.eventFirebaseId.isEmpty) {
-        print('Error: Gift must be associated with an event before publishing.');
-        throw Exception("Event ID is required to publish the gift.");
-      }
-
-      String? userUID = await _secureStorage.read(key: 'userUID');
+      final userUID = await _secureStorage.read(key: 'userUID');
       if (userUID == null) {
-        print('User UID not found. Cannot publish gift.');
-        return;
+        throw Exception("User UID not found. Cannot publish gift.");
       }
 
-      Map<String, dynamic> giftData = {
+      final giftData = {
         'name': gift.name,
         'description': gift.description,
         'category': gift.category,
@@ -159,38 +195,35 @@ class GiftController {
         'published': true,
       };
 
-      String firestoreId = gift.giftFirebaseId;
-
-      if (firestoreId.isNotEmpty) {
-        await _firestore.collection('gifts').doc(firestoreId).set(giftData);
+      if (gift.giftFirebaseId.isNotEmpty) {
+        await _firestore.collection('gifts').doc(gift.giftFirebaseId).set(giftData);
         print('Updated gift in Firestore: ${gift.name}');
       } else {
-        DocumentReference docRef = await _firestore.collection('gifts').add(giftData);
-        firestoreId = docRef.id;
+        final docRef = await _firestore.collection('gifts').add(giftData);
+        await updateGift(gift.copyWith(
+          giftFirebaseId: docRef.id,
+          published: true,
+          userId: userUID,
+        ));
         print('Published new gift to Firestore: ${gift.name}');
       }
-
-      await updateGift(gift.copyWith(
-        giftFirebaseId: firestoreId,
-        published: true,
-        userId: userUID,
-      ));
     } catch (e) {
       print('Error publishing gift: $e');
+      throw Exception("Error publishing gift: $e");
     }
   }
 
-  // Unpublish Gift (Remove from Firestore)
+  // Unpublish a gift (remove from Firestore)
   Future<void> unpublishGift(GiftModel gift) async {
     try {
       if (gift.giftFirebaseId.isNotEmpty) {
         await _firestore.collection('gifts').doc(gift.giftFirebaseId).delete();
         print('Gift removed from Firestore: ${gift.name}');
-
         await updateGift(gift.copyWith(published: false));
       }
     } catch (e) {
       print('Error unpublishing gift: $e');
+      throw Exception("Error unpublishing gift: $e");
     }
   }
 }

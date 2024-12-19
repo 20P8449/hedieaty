@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added to fetch current user ID
 import 'package:project/screens/home_page.dart';
 import 'package:project/screens/event_list_page.dart';
 import 'package:project/screens/my_pledged_gifts_page.dart';
 import 'package:project/screens/profile_page.dart';
-import 'package:project/screens/auth_page.dart';
 import 'package:project/views/signIn.dart';
 import 'package:project/views/signUp.dart';
 
@@ -22,7 +22,7 @@ class HedeiatyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: SignInPage(), // Redirect to AuthPage as the default screen
+      home: SignInPage(), // Redirect to SignInPage as the default screen
       routes: {
         '/home': (context) => MainNavigation(),
         '/signin': (context) => SignInPage(),
@@ -39,13 +39,27 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
+  String? currentUserId;
 
-  // List of pages for navigation (removed GiftListPage)
-  final List<Widget> _pages = [
+  // Initialize the current user ID
+  @override
+  void initState() {
+    super.initState();
+    currentUserId = FirebaseAuth.instance.currentUser?.uid;
+  }
+
+  // List of pages for navigation
+  late final List<Widget> _pages = [
     HomePage(),
-    EventListPage(),
-    ProfilePage(),
-    MyPledgedGiftsPage(),
+    if (currentUserId != null)
+      EventListPage(userId: currentUserId!) // Pass userId to EventListPage
+    else
+      Center(child: Text("User not authenticated")),
+    ProfilePage(), // Removed userId as ProfilePage doesn't require it
+    if (currentUserId != null)
+      MyPledgedGiftsPage(userId: currentUserId!) // Pass userId to MyPledgedGiftsPage
+    else
+      Center(child: Text("User not authenticated")),
   ];
 
   // Sample notifications list
