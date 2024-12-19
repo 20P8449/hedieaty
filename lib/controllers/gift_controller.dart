@@ -17,25 +17,25 @@ class GiftController {
       throw Exception("Event ID and User ID are required for adding a gift.");
     }
 
-    // Insert gift into SQLite
-    final giftId = await db.insert(
-      'gifts',
-      {
-        ...gift.toMap(),
-        'published': 0, // Ensure published is set to 0 for SQLite
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-
     try {
-      final giftData = {
+      // Insert gift into SQLite
+      final giftId = await db.insert(
+        'gifts',
+        {
+          ...gift.toMap(),
+          'published': 0, // Ensure published is set to 0 for SQLite
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      // Add to Firestore
+      final docRef = await _firestore.collection('gifts').add({
         ...gift.toMap(),
-        'published': false,
-      };
+        'published': false, // Ensure published is false in Firestore
+      });
 
-      final docRef = await _firestore.collection('gifts').add(giftData);
+      // Update Firestore ID in SQLite
       final giftFirebaseId = docRef.id;
-
       await db.update(
         'gifts',
         {'giftFirebaseId': giftFirebaseId},
@@ -58,26 +58,93 @@ class GiftController {
       throw Exception("Gift ID is required for updating.");
     }
 
-    await db.update(
-      'gifts',
-      {
-        ...gift.toMap(),
-        'published': gift.published ? 1 : 0,
-      },
-      where: 'id = ?',
-      whereArgs: [gift.id],
-    );
+    try {
+      // Update SQLite
+      await db.update(
+        'gifts',
+        {
+          ...gift.toMap(),
+          'published': gift.published ? 1 : 0,
+        },
+        where: 'id = ?',
+        whereArgs: [gift.id],
+      );
 
-    if (gift.giftFirebaseId.isNotEmpty) {
-      try {
+      // Update Firestore
+      if (gift.giftFirebaseId.isNotEmpty) {
         await _firestore.collection('gifts').doc(gift.giftFirebaseId).set({
           ...gift.toMap(),
           'published': gift.published,
         });
         print('Gift updated successfully in Firestore.');
-      } catch (e) {
-        print('Error updating gift in Firestore: $e');
       }
+    } catch (e) {
+      print('Error updating gift: $e');
+      throw e;
+    }
+  }
+
+  // Publish a gift (ensures publishing in both SQLite and Firestore)
+  Future<void> publishGift(GiftModel gift) async {
+    final db = await _dbHelper.database;
+
+    try {
+      if (gift.giftFirebaseId.isEmpty) {
+        throw Exception("Gift must have a valid Firestore ID to publish.");
+      }
+
+      // Update Firestore
+      await _firestore.collection('gifts').doc(gift.giftFirebaseId).update({
+        'published': true,
+      });
+
+      // Update SQLite
+      await db.update(
+        'gifts',
+        {
+          ...gift.toMap(),
+          'published': 1,
+        },
+        where: 'id = ?',
+        whereArgs: [gift.id],
+      );
+
+      print('Gift published successfully in both Firestore and SQLite: ${gift.name}');
+    } catch (e) {
+      print('Error publishing gift: $e');
+      throw e;
+    }
+  }
+
+  // Unpublish a gift
+  Future<void> unpublishGift(GiftModel gift) async {
+    final db = await _dbHelper.database;
+
+    try {
+      if (gift.giftFirebaseId.isEmpty) {
+        throw Exception("Gift must have a valid Firestore ID to unpublish.");
+      }
+
+      // Update Firestore
+      await _firestore.collection('gifts').doc(gift.giftFirebaseId).update({
+        'published': false,
+      });
+
+      // Update SQLite
+      await db.update(
+        'gifts',
+        {
+          ...gift.toMap(),
+          'published': 0,
+        },
+        where: 'id = ?',
+        whereArgs: [gift.id],
+      );
+
+      print('Gift unpublished successfully in both Firestore and SQLite: ${gift.name}');
+    } catch (e) {
+      print('Error unpublishing gift: $e');
+      throw e;
     }
   }
 
@@ -135,7 +202,10 @@ class GiftController {
   }
 
   // Fetch gifts by event ID and user ID
-  Future<List<GiftModel>> getGiftsByEventAndUser(String eventId, String userId) async {
+  Future<List<GiftModel>> getGiftsByEventAndUser({
+    required String eventId,
+    required String userId,
+  }) async {
     final db = await _dbHelper.database;
 
     try {
@@ -146,66 +216,8 @@ class GiftController {
       );
       return result.map((e) => GiftModel.fromMap(e)).toList();
     } catch (e) {
-      print('Error fetching gifts: $e');
-      throw Exception("Error fetching gifts: $e");
-    }
-  }
-
-  // Publish a gift to Firestore
-  Future<void> publishGift(GiftModel gift) async {
-    if (gift.eventFirebaseId.isEmpty || gift.giftFirebaseId.isEmpty) {
-      throw Exception("Event ID and Firestore ID are required to publish the gift.");
-    }
-
-    try {
-      final giftData = {
-        ...gift.toMap(),
-        'published': true,
-      };
-
-      await _firestore.collection('gifts').doc(gift.giftFirebaseId).set(giftData);
-
-      final db = await _dbHelper.database;
-      await db.update(
-        'gifts',
-        {'published': 1},
-        where: 'id = ?',
-        whereArgs: [gift.id],
-      );
-
-      print('Gift published successfully: ${gift.name}');
-    } catch (e) {
-      print('Error publishing gift: $e');
-      throw e;
-    }
-  }
-
-  // Unpublish a gift from Firestore
-  Future<void> unpublishGift(GiftModel gift) async {
-    if (gift.giftFirebaseId.isEmpty) {
-      throw Exception("Firestore ID is required to unpublish the gift.");
-    }
-
-    try {
-      final giftData = {
-        ...gift.toMap(),
-        'published': false,
-      };
-
-      await _firestore.collection('gifts').doc(gift.giftFirebaseId).set(giftData);
-
-      final db = await _dbHelper.database;
-      await db.update(
-        'gifts',
-        {'published': 0},
-        where: 'id = ?',
-        whereArgs: [gift.id],
-      );
-
-      print('Gift unpublished successfully: ${gift.name}');
-    } catch (e) {
-      print('Error unpublishing gift: $e');
-      throw e;
+      print('Error fetching gifts by event and user: $e');
+      throw Exception("Error fetching gifts by event and user: $e");
     }
   }
 

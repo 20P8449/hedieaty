@@ -35,8 +35,8 @@ class _GiftListPageState extends State<GiftListPage> {
     try {
       await _giftController.syncGiftsFromFirestore(widget.userId); // Sync gifts for this user
       final loadedGifts = await _giftController.getGiftsByEventAndUser(
-        widget.selectedEventId,
-        widget.userId,
+        eventId: widget.selectedEventId,
+        userId: widget.userId,
       );
       if (mounted) {
         setState(() {
@@ -51,6 +51,11 @@ class _GiftListPageState extends State<GiftListPage> {
   // Add a new gift
   Future<void> addGift(GiftModel newGift) async {
     try {
+      // Generate a unique ID for the new gift if not provided
+      if (newGift.id == null) {
+        newGift = newGift.copyWith(id: DateTime.now().millisecondsSinceEpoch);
+      }
+
       await _giftController.addGift(newGift);
       loadGifts();
     } catch (e) {
@@ -61,6 +66,9 @@ class _GiftListPageState extends State<GiftListPage> {
   // Update the gift in the database
   Future<void> updateGift(GiftModel gift) async {
     try {
+      if (gift.id == null) {
+        throw Exception('Gift ID cannot be null during update.');
+      }
       await _giftController.updateGift(gift);
       loadGifts();
     } catch (e) {
@@ -78,23 +86,19 @@ class _GiftListPageState extends State<GiftListPage> {
     }
   }
 
-  // Publish a gift to Firestore
-  Future<void> publishGift(GiftModel gift) async {
+  // Toggle published status of a gift
+  Future<void> togglePublishedStatus(GiftModel gift) async {
     try {
-      await _giftController.publishGift(gift);
+      if (!gift.published) {
+        print('Publishing gift: ${gift.name}');
+        await _giftController.publishGift(gift);
+      } else {
+        print('Unpublishing gift: ${gift.name}');
+        await _giftController.unpublishGift(gift);
+      }
       loadGifts();
     } catch (e) {
-      print('Error publishing gift: $e');
-    }
-  }
-
-  // Unpublish a gift from Firestore
-  Future<void> unpublishGift(GiftModel gift) async {
-    try {
-      await _giftController.unpublishGift(gift);
-      loadGifts();
-    } catch (e) {
-      print('Error unpublishing gift: $e');
+      print('Error toggling published status: $e');
     }
   }
 
@@ -130,61 +134,39 @@ class _GiftListPageState extends State<GiftListPage> {
                         Text('Status: ${gift.status}'),
                       ],
                     ),
-                    onTap: isOwner
-                        ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GiftDetailsPage(
-                            gift: {
-                              'id': gift.id,
-                              'name': gift.name,
-                              'description': gift.description,
-                              'category': gift.category,
-                              'price': gift.price,
-                              'status': gift.status,
-                            },
-                            onSave: (updatedGiftData) async {
-                              final updatedGift = gift.copyWith(
-                                name: updatedGiftData['name'],
-                                description: updatedGiftData['description'],
-                                category: updatedGiftData['category'],
-                                price: updatedGiftData['price'],
-                                status: updatedGiftData['status'],
-                              );
-                              await updateGift(updatedGift);
-                            },
+                    onTap: () {
+                      if (isOwner) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => GiftDetailsPage(
+                              gift: gift.toMap(), // Pass the gift data
+                              onSave: (updatedGiftData) async {
+                                final updatedGift = gift.copyWith(
+                                  name: updatedGiftData['name'],
+                                  description: updatedGiftData['description'],
+                                  category: updatedGiftData['category'],
+                                  price: updatedGiftData['price'],
+                                  status: updatedGiftData['status'],
+                                );
+                                await updateGift(updatedGift);
+                              },
+                            ),
                           ),
-                        ),
-                      );
-                    }
-                        : null,
+                        );
+                      }
+                    },
                     trailing: isOwner
                         ? Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          icon: Icon(Icons.cloud_upload),
-                          color: gift.published ? Colors.grey : Colors.blue,
-                          onPressed: () {
-                            if (!gift.published) publishGift(gift);
-                          },
-                          tooltip: 'Publish',
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.cloud_off),
-                          color: gift.published ? Colors.red : Colors.grey,
-                          onPressed: () {
-                            if (gift.published) unpublishGift(gift);
-                          },
-                          tooltip: 'Unpublish',
+                        Switch(
+                          value: gift.published,
+                          onChanged: (_) => togglePublishedStatus(gift),
                         ),
                         IconButton(
                           icon: Icon(Icons.delete),
-                          onPressed: () {
-                            deleteGift(gift.id!);
-                          },
-                          tooltip: 'Delete',
+                          onPressed: () => deleteGift(gift.id!),
                         ),
                       ],
                     )
@@ -203,6 +185,7 @@ class _GiftListPageState extends State<GiftListPage> {
                     MaterialPageRoute(
                       builder: (context) => GiftDetailsPage(
                         gift: {
+                          'id': null, // ID will be generated dynamically
                           'name': '',
                           'description': '',
                           'category': '',
@@ -211,7 +194,7 @@ class _GiftListPageState extends State<GiftListPage> {
                         },
                         onSave: (newGiftData) async {
                           final newGift = GiftModel(
-                            id: null,
+                            id: newGiftData['id'], // Use generated ID
                             name: newGiftData['name'],
                             description: newGiftData['description'],
                             category: newGiftData['category'],

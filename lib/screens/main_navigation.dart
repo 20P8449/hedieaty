@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Added to fetch current user ID
-import 'package:project/screens/home_page.dart';
+import 'package:project/screens/home_page.dart'; // Ensure HomePage is correctly imported
 import 'package:project/screens/event_list_page.dart';
 import 'package:project/screens/my_pledged_gifts_page.dart';
 import 'package:project/screens/profile_page.dart';
@@ -50,7 +50,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   // List of pages for navigation
   late final List<Widget> _pages = [
-    HomePage(),
+    HomePage(), // Fixed: Ensure HomePage is defined or correctly imported
     if (currentUserId != null)
       EventListPage(
         userId: currentUserId!, // Pass userId to EventListPage

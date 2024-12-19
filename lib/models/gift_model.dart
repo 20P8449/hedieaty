@@ -23,9 +23,9 @@ class GiftModel {
     this.published = false,
   });
 
-  /// Convert the GiftModel to a Map for SQLite storage
+  /// Convert the GiftModel to a Map for SQLite or Firestore storage
   Map<String, dynamic> toMap() {
-    return {
+    final map = {
       'id': id,
       'name': name,
       'description': description,
@@ -37,9 +37,14 @@ class GiftModel {
       'giftFirebaseId': giftFirebaseId, // Firestore document ID
       'published': published ? 1 : 0, // Convert bool to int for SQLite compatibility
     };
+
+    // Remove null or empty fields for Firestore
+    map.removeWhere((key, value) => value == null || value == '');
+
+    return map;
   }
 
-  /// Create a GiftModel instance from a Map (e.g., SQLite row)
+  /// Create a GiftModel instance from a Map (e.g., SQLite row or Firestore document)
   factory GiftModel.fromMap(Map<String, dynamic> map) {
     return GiftModel(
       id: map['id'], // SQLite ID
@@ -51,7 +56,7 @@ class GiftModel {
       eventFirebaseId: map['eventFirebaseId'] ?? '', // Restore event ID
       userId: map['userId'] ?? '', // Restore user ID
       giftFirebaseId: map['giftFirebaseId'] ?? '', // Restore Firestore document ID
-      published: map['published'] == 1, // Convert SQLite int to bool
+      published: (map['published'] == 1 || map['published'] == true), // Handle both SQLite int and Firestore bool
     );
   }
 
@@ -79,6 +84,35 @@ class GiftModel {
       userId: userId ?? this.userId, // Maintain existing user ID if not updated
       giftFirebaseId: giftFirebaseId ?? this.giftFirebaseId, // Maintain existing Firestore ID if not updated
       published: published ?? this.published, // Maintain existing published state if not updated
+    );
+  }
+
+  /// Convert the GiftModel to a Firestore-compatible Map
+  Map<String, dynamic> toFirestore() {
+    return {
+      'name': name,
+      'description': description,
+      'category': category,
+      'price': price,
+      'status': status,
+      'eventFirebaseId': eventFirebaseId,
+      'userId': userId,
+      'published': published,
+    }..removeWhere((key, value) => value == null || value == '');
+  }
+
+  /// Create a GiftModel instance from Firestore data
+  factory GiftModel.fromFirestore(Map<String, dynamic> map) {
+    return GiftModel(
+      name: map['name'] ?? '',
+      description: map['description'] ?? '',
+      category: map['category'] ?? '',
+      price: (map['price'] as num?)?.toDouble() ?? 0.0,
+      status: map['status'] ?? '',
+      eventFirebaseId: map['eventFirebaseId'] ?? '',
+      userId: map['userId'] ?? '',
+      giftFirebaseId: map['giftFirebaseId'] ?? '',
+      published: map['published'] == true, // Firestore stores boolean values
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../controllers/event_controller.dart';
 import '../models/event_model.dart';
 import 'gift_list_page.dart';
+import 'gift_pledge_page.dart';
 
 class EventListPage extends StatefulWidget {
   final String userId; // User ID to filter events and gifts by user
@@ -16,6 +17,7 @@ class EventListPage extends StatefulWidget {
 class _EventListPageState extends State<EventListPage> {
   final EventController _eventController = EventController();
   List<EventModel> events = [];
+  int upcomingEventCount = 0;
 
   @override
   void initState() {
@@ -23,40 +25,27 @@ class _EventListPageState extends State<EventListPage> {
     loadEvents();
   }
 
-  // Load events for the user
+  // Load events for the user and calculate upcoming events
   Future<void> loadEvents() async {
     try {
-      final loadedEvents = await _eventController.getEventsByUserId(widget.userId);
-      if (mounted) {
-        setState(() {
-          events = loadedEvents;
-        });
-      }
+      final allEvents = await _eventController.getEventsByUserId(widget.userId);
+
+      // Parse dates and filter upcoming events
+      final now = DateTime.now();
+      final upcomingEvents = allEvents
+          .where((event) {
+        final eventDate = DateTime.tryParse(event.date);
+        return eventDate != null && eventDate.isAfter(now);
+      })
+          .toList();
+
+      setState(() {
+        events = allEvents; // Show all events
+        upcomingEventCount = upcomingEvents.length; // Count upcoming events
+      });
     } catch (e) {
       print('Error loading events: $e');
     }
-  }
-
-  // Add or update an event
-  Future<void> addOrUpdateEvent(EventModel event) async {
-    if (event.id == null) {
-      await _eventController.addEvent(event);
-    } else {
-      await _eventController.updateEvent(event);
-    }
-    loadEvents();
-  }
-
-  // Toggle event's published status
-  Future<void> togglePublishedStatus(EventModel event) async {
-    await _eventController.togglePublished(event);
-    loadEvents();
-  }
-
-  // Delete an event
-  Future<void> deleteEvent(int id) async {
-    await _eventController.deleteEvent(id);
-    loadEvents();
   }
 
   @override
@@ -65,7 +54,19 @@ class _EventListPageState extends State<EventListPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isOwner ? "My Events" : "Friend's Events"),
+        title: Text("Events"),
+        actions: [
+          if (upcomingEventCount > 0)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  "Upcoming: $upcomingEventCount",
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            ),
+        ],
       ),
       body: events.isEmpty
           ? Center(child: Text('No events available.'))
@@ -80,15 +81,14 @@ class _EventListPageState extends State<EventListPage> {
                 'Date: ${event.date}\nLocation: ${event.location}\nPublished: ${event.published ? "Yes" : "No"}',
               ),
               onTap: () {
-                // Navigate to GiftListPage filtered by event ID and user ID
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => GiftListPage(
                       selectedEventId: event.eventFirebaseId,
                       selectedEventName: event.name,
-                      userId: widget.userId, // Pass the userId
-                      currentUserId: widget.currentUserId, // Pass current userId
+                      userId: widget.userId,
+                      currentUserId: widget.currentUserId,
                     ),
                   ),
                 );
@@ -99,7 +99,10 @@ class _EventListPageState extends State<EventListPage> {
                 children: [
                   Switch(
                     value: event.published,
-                    onChanged: (value) => togglePublishedStatus(event),
+                    onChanged: (value) async {
+                      await _eventController.togglePublished(event);
+                      loadEvents();
+                    },
                   ),
                   IconButton(
                     icon: Icon(Icons.edit),
@@ -109,7 +112,7 @@ class _EventListPageState extends State<EventListPage> {
                         builder: (context) => EventDialog(
                           title: 'Edit Event',
                           initialEvent: event,
-                          userId: widget.userId, // Pass userId for linking
+                          userId: widget.userId,
                           onSave: (updatedEvent) async {
                             await _eventController.updateEvent(updatedEvent);
                             loadEvents();
@@ -120,11 +123,30 @@ class _EventListPageState extends State<EventListPage> {
                   ),
                   IconButton(
                     icon: Icon(Icons.delete),
-                    onPressed: () => deleteEvent(event.id!),
+                    onPressed: () async {
+                      await _eventController.deleteEvent(event.id!);
+                      loadEvents();
+                    },
                   ),
                 ],
               )
-                  : null, // Hide options for non-owners
+                  : ElevatedButton(
+                onPressed: () {
+                  // Navigate to Gift Pledge Page
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GiftPledgePage(
+                        eventId: event.eventFirebaseId,
+                        eventName: event.name,
+                        friendId: widget.userId,
+                        currentUserId: widget.currentUserId,
+                      ),
+                    ),
+                  );
+                },
+                child: Text("Pledge Gift"),
+              ),
             ),
           );
         },
@@ -136,7 +158,7 @@ class _EventListPageState extends State<EventListPage> {
             context: context,
             builder: (context) => EventDialog(
               title: 'Add Event',
-              userId: widget.userId, // Pass userId for linking
+              userId: widget.userId,
               onSave: (newEvent) async {
                 await _eventController.addEvent(newEvent);
                 loadEvents();
@@ -155,13 +177,13 @@ class EventDialog extends StatefulWidget {
   final Function(EventModel) onSave;
   final String title;
   final EventModel? initialEvent;
-  final String userId; // Added userId for linking events to the user
+  final String userId;
 
   EventDialog({
     required this.onSave,
     required this.title,
     this.initialEvent,
-    required this.userId, // Ensure userId is passed
+    required this.userId,
   });
 
   @override
@@ -198,7 +220,7 @@ class _EventDialogState extends State<EventDialog> {
             ),
             TextField(
               controller: _dateController,
-              decoration: InputDecoration(labelText: 'Date'),
+              decoration: InputDecoration(labelText: 'Date (YYYY-MM-DD)'),
             ),
             TextField(
               controller: _locationController,
@@ -220,7 +242,7 @@ class _EventDialogState extends State<EventDialog> {
               date: _dateController.text.trim(),
               location: _locationController.text.trim(),
               description: _descriptionController.text.trim(),
-              userId: widget.userId, // Link the event to the userId
+              userId: widget.userId,
               eventFirebaseId: widget.initialEvent?.eventFirebaseId ?? '',
               published: widget.initialEvent?.published ?? false,
             );

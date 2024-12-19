@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'event_list_page.dart';
-import 'package:project/services/friend_service.dart'; // Service to fetch friends from Firestore
+import '../controllers/event_controller.dart'; // Correctly importing the EventController
+import '../services/friend_service.dart'; // Service to fetch friends from Firestore
+import '../screens/event_list_page.dart'; // Correct import of EventListPage
 import 'package:firebase_auth/firebase_auth.dart'; // To get the current user ID
 
 class HomePage extends StatefulWidget {
@@ -11,18 +12,20 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> friends = [];
   bool isLoading = true;
-  String? currentUserId;
+  late EventController _eventController; // Correctly initializing EventController
+  Map<String, int> upcomingEventsCount = {}; // Store upcoming events count for each friend
 
   @override
   void initState() {
     super.initState();
+    _eventController = EventController(); // Initialize EventController instance
     fetchFriends();
   }
 
   Future<void> fetchFriends() async {
     try {
       // Get the current user ID
-      currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
       if (currentUserId == null) {
         throw Exception("User not authenticated.");
@@ -30,9 +33,22 @@ class _HomePageState extends State<HomePage> {
 
       // Fetch friends from Firestore via FriendService
       final fetchedFriends =
-      await FriendService.getFriendsFromFirestore(currentUserId!);
+      await FriendService.getFriendsFromFirestore(currentUserId);
+
+      Map<String, int> tempUpcomingEventsCount = {};
+
+      // Fetch upcoming events count for each friend
+      for (var friend in fetchedFriends) {
+        final friendId = friend['id'];
+
+        // Fetch upcoming events asynchronously
+        final events = await _eventController.getUpcomingEventsByUserId(friendId);
+        tempUpcomingEventsCount[friendId] = events.length; // Store count
+      }
+
       setState(() {
         friends = fetchedFriends;
+        upcomingEventsCount = tempUpcomingEventsCount; // Update state with counts
         isLoading = false;
       });
     } catch (e) {
@@ -68,21 +84,26 @@ class _HomePageState extends State<HomePage> {
         itemCount: friends.length,
         itemBuilder: (context, index) {
           final friend = friends[index];
+          final upcomingCount =
+              upcomingEventsCount[friend['id']] ?? 0; // Get count
           return Card(
-            margin:
-            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
               title: Text(friend['name']),
-              subtitle: Text(friend['mobile']),
+              subtitle: Text(
+                "${friend['mobile']}\nUpcoming Events: $upcomingCount", // Display count
+                style: TextStyle(fontSize: 14),
+              ),
               onTap: () {
-                // Navigate to friend's event list with userId and currentUserId
+                // Navigate to friend's event list with userId
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => EventListPage(
                       userId: friend['id'], // Pass userId
                       currentUserId:
-                      currentUserId!, // Pass currentUserId
+                      FirebaseAuth.instance.currentUser?.uid ??
+                          '',
                     ),
                   ),
                 );
@@ -142,7 +163,6 @@ class FriendSearchDelegate extends SearchDelegate {
                 subtitle: Text(user['mobile']),
                 trailing: ElevatedButton(
                   onPressed: () async {
-                    // Add friend functionality
                     try {
                       final currentUserId =
                           FirebaseAuth.instance.currentUser?.uid;
@@ -157,8 +177,7 @@ class FriendSearchDelegate extends SearchDelegate {
                       );
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                              "${user['name']} has been added as a friend"),
+                          content: Text("${user['name']} has been added as a friend"),
                         ),
                       );
                     } catch (e) {
