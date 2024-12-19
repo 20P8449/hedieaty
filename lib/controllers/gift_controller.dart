@@ -50,7 +50,7 @@ class GiftController {
     }
   }
 
-  // Update an existing gift
+  // Update an existing gift in SQLite and Firestore
   Future<void> updateGift(GiftModel gift) async {
     final db = await _dbHelper.database;
 
@@ -72,9 +72,8 @@ class GiftController {
 
       // Update Firestore
       if (gift.giftFirebaseId.isNotEmpty) {
-        await _firestore.collection('gifts').doc(gift.giftFirebaseId).set({
-          ...gift.toMap(),
-          'published': gift.published,
+        await _firestore.collection('gifts').doc(gift.giftFirebaseId).update({
+          ...gift.toFirestore(),
         });
         print('Gift updated successfully in Firestore.');
       }
@@ -84,7 +83,7 @@ class GiftController {
     }
   }
 
-  // Publish a gift (ensures publishing in both SQLite and Firestore)
+  // Publish a gift
   Future<void> publishGift(GiftModel gift) async {
     final db = await _dbHelper.database;
 
@@ -125,7 +124,7 @@ class GiftController {
         throw Exception("Gift must have a valid Firestore ID to unpublish.");
       }
 
-      // Update Firestore
+      // Update Firestore to unpublish
       await _firestore.collection('gifts').doc(gift.giftFirebaseId).update({
         'published': false,
       });
@@ -148,7 +147,44 @@ class GiftController {
     }
   }
 
-  // Delete a gift from SQLite and Firestore
+  // Mark a gift as pledged
+  Future<void> pledgeGift(GiftModel gift, String pledgerId) async {
+    final db = await _dbHelper.database;
+
+    try {
+      if (gift.status == 'Pledged') {
+        throw Exception("This gift is already pledged.");
+      }
+
+      // Update gift status to pledged
+      final updatedGift = gift.copyWith(
+        status: 'Pledged',
+        pledgedBy: pledgerId, // Save the pledger's ID
+      );
+
+      await db.update(
+        'gifts',
+        updatedGift.toMap(),
+        where: 'id = ?',
+        whereArgs: [gift.id],
+      );
+
+      // Update Firestore
+      if (gift.giftFirebaseId.isNotEmpty) {
+        await _firestore.collection('gifts').doc(gift.giftFirebaseId).update({
+          'status': 'Pledged',
+          'pledgedBy': pledgerId, // Add pledger info in Firestore
+        });
+      }
+
+      print('Gift pledged successfully: ${gift.name}');
+    } catch (e) {
+      print('Error pledging gift: $e');
+      throw e;
+    }
+  }
+
+  // Delete a gift
   Future<void> deleteGift(int id) async {
     final db = await _dbHelper.database;
 
@@ -184,7 +220,7 @@ class GiftController {
     }
   }
 
-  // Fetch all gifts for a specific user
+  // Fetch all gifts for a user
   Future<List<GiftModel>> getAllGifts(String userId) async {
     final db = await _dbHelper.database;
 

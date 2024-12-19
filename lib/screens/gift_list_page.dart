@@ -48,14 +48,20 @@ class _GiftListPageState extends State<GiftListPage> {
     }
   }
 
+  // Mark a gift as pledged
+  Future<void> pledgeGift(GiftModel gift) async {
+    try {
+      await _giftController.pledgeGift(gift, widget.currentUserId);
+      loadGifts();
+      print('Gift pledged successfully: ${gift.name}');
+    } catch (e) {
+      print('Error pledging gift: $e');
+    }
+  }
+
   // Add a new gift
   Future<void> addGift(GiftModel newGift) async {
     try {
-      // Generate a unique ID for the new gift if not provided
-      if (newGift.id == null) {
-        newGift = newGift.copyWith(id: DateTime.now().millisecondsSinceEpoch);
-      }
-
       await _giftController.addGift(newGift);
       loadGifts();
     } catch (e) {
@@ -63,16 +69,29 @@ class _GiftListPageState extends State<GiftListPage> {
     }
   }
 
-  // Update the gift in the database
+  // Update a gift
   Future<void> updateGift(GiftModel gift) async {
     try {
-      if (gift.id == null) {
-        throw Exception('Gift ID cannot be null during update.');
-      }
       await _giftController.updateGift(gift);
       loadGifts();
     } catch (e) {
       print('Error updating gift: $e');
+    }
+  }
+
+  // Publish/Unpublish a gift
+  Future<void> togglePublishGift(GiftModel gift) async {
+    try {
+      if (gift.published) {
+        await _giftController.unpublishGift(gift);
+        print('Gift unpublished: ${gift.name}');
+      } else {
+        await _giftController.publishGift(gift);
+        print('Gift published: ${gift.name}');
+      }
+      loadGifts();
+    } catch (e) {
+      print('Error toggling publish state: $e');
     }
   }
 
@@ -83,22 +102,6 @@ class _GiftListPageState extends State<GiftListPage> {
       loadGifts();
     } catch (e) {
       print('Error deleting gift: $e');
-    }
-  }
-
-  // Toggle published status of a gift
-  Future<void> togglePublishedStatus(GiftModel gift) async {
-    try {
-      if (!gift.published) {
-        print('Publishing gift: ${gift.name}');
-        await _giftController.publishGift(gift);
-      } else {
-        print('Unpublishing gift: ${gift.name}');
-        await _giftController.unpublishGift(gift);
-      }
-      loadGifts();
-    } catch (e) {
-      print('Error toggling published status: $e');
     }
   }
 
@@ -119,12 +122,13 @@ class _GiftListPageState extends State<GiftListPage> {
               itemCount: gifts.length,
               itemBuilder: (context, index) {
                 final gift = gifts[index];
+                final isPledged = gift.status == 'Pledged';
                 return Card(
                   margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: ListTile(
                     leading: Icon(
                       Icons.card_giftcard,
-                      color: gift.published ? Colors.green : Colors.blue,
+                      color: isPledged ? Colors.orange : Colors.blue,
                     ),
                     title: Text(gift.name),
                     subtitle: Column(
@@ -132,37 +136,39 @@ class _GiftListPageState extends State<GiftListPage> {
                       children: [
                         Text('Category: ${gift.category}'),
                         Text('Status: ${gift.status}'),
+                        if (isOwner) Text('Published: ${gift.published ? "Yes" : "No"}'),
                       ],
                     ),
-                    onTap: () {
-                      if (isOwner) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => GiftDetailsPage(
-                              gift: gift.toMap(), // Pass the gift data
-                              onSave: (updatedGiftData) async {
-                                final updatedGift = gift.copyWith(
-                                  name: updatedGiftData['name'],
-                                  description: updatedGiftData['description'],
-                                  category: updatedGiftData['category'],
-                                  price: updatedGiftData['price'],
-                                  status: updatedGiftData['status'],
-                                );
-                                await updateGift(updatedGift);
-                              },
-                            ),
-                          ),
-                        );
-                      }
-                    },
                     trailing: isOwner
                         ? Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        IconButton(
+                          icon: Icon(Icons.edit),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => GiftDetailsPage(
+                                  gift: gift.toMap(),
+                                  onSave: (updatedGiftData) async {
+                                    final updatedGift = gift.copyWith(
+                                      name: updatedGiftData['name'],
+                                      description: updatedGiftData['description'],
+                                      category: updatedGiftData['category'],
+                                      price: updatedGiftData['price'],
+                                      status: updatedGiftData['status'],
+                                    );
+                                    await updateGift(updatedGift);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                         Switch(
                           value: gift.published,
-                          onChanged: (_) => togglePublishedStatus(gift),
+                          onChanged: (_) => togglePublishGift(gift),
                         ),
                         IconButton(
                           icon: Icon(Icons.delete),
@@ -170,7 +176,12 @@ class _GiftListPageState extends State<GiftListPage> {
                         ),
                       ],
                     )
-                        : null,
+                        : ElevatedButton(
+                      onPressed: isPledged
+                          ? null // Disable button if already pledged
+                          : () => pledgeGift(gift),
+                      child: Text(isPledged ? "Pledged" : "Pledge"),
+                    ),
                   ),
                 );
               },

@@ -24,20 +24,26 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
   // Fetch pledged gifts dynamically
   Future<void> loadPledgedGifts() async {
     try {
-      final allGifts = await _giftController.getAllGifts(widget.userId); // Pass userId
+      final allGifts = await _giftController.getAllGifts(widget.userId); // Fetch all gifts
       setState(() {
-        pledgedGifts =
-            allGifts.where((gift) => gift.status == 'Pledged').toList();
+        pledgedGifts = allGifts.where((gift) => gift.status == 'Pledged').toList();
       });
     } catch (e) {
       print('Error loading pledged gifts: $e');
+      setState(() {
+        pledgedGifts = [];
+      });
     }
   }
 
   // Update a pledged gift
   Future<void> updatePledgedGift(GiftModel updatedGift) async {
-    await _giftController.updateGift(updatedGift);
-    loadPledgedGifts();
+    try {
+      await _giftController.updateGift(updatedGift);
+      loadPledgedGifts();
+    } catch (e) {
+      print('Error updating pledged gift: $e');
+    }
   }
 
   @override
@@ -53,13 +59,18 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
           return Card(
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
-              leading: Icon(Icons.card_giftcard, color: Colors.blue),
+              leading: Icon(Icons.card_giftcard, color: Colors.orange),
               title: Text(gift.name),
-              subtitle: Text(
-                'Due Date: ${gift.description}', // Assume description holds the due date
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Description: ${gift.description}'),
+                  Text('Status: ${gift.status}'),
+                  Text('Event ID: ${gift.eventFirebaseId}'),
+                ],
               ),
               trailing: IconButton(
-                icon: Icon(Icons.edit),
+                icon: Icon(Icons.edit, color: Colors.blue),
                 onPressed: () {
                   showDialog(
                     context: context,
@@ -107,33 +118,35 @@ class _EditPledgedGiftDialogState extends State<EditPledgedGiftDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text('Edit Pledged Gift'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: InputDecoration(labelText: 'Gift Name'),
-          ),
-          TextField(
-            controller: _descriptionController,
-            decoration: InputDecoration(labelText: 'Due Date'),
-          ),
-          DropdownButton<String>(
-            value: _status,
-            onChanged: (String? newValue) {
-              setState(() {
-                _status = newValue!;
-              });
-            },
-            items: ['Pledged', 'Available']
-                .map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-          ),
-        ],
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(labelText: 'Gift Name'),
+            ),
+            TextField(
+              controller: _descriptionController,
+              decoration: InputDecoration(labelText: 'Description'),
+            ),
+            DropdownButton<String>(
+              value: _status,
+              onChanged: (String? newValue) {
+                setState(() {
+                  _status = newValue!;
+                });
+              },
+              items: ['Pledged', 'Available']
+                  .map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(

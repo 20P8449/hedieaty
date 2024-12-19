@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../controllers/event_controller.dart';
 import '../models/event_model.dart';
 import 'gift_list_page.dart';
-import 'gift_pledge_page.dart';
 
 class EventListPage extends StatefulWidget {
   final String userId; // User ID to filter events and gifts by user
@@ -132,20 +131,19 @@ class _EventListPageState extends State<EventListPage> {
               )
                   : ElevatedButton(
                 onPressed: () {
-                  // Navigate to Gift Pledge Page
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => GiftPledgePage(
-                        eventId: event.eventFirebaseId,
-                        eventName: event.name,
-                        friendId: widget.userId,
+                      builder: (context) => GiftListPage(
+                        selectedEventId: event.eventFirebaseId,
+                        selectedEventName: event.name,
+                        userId: widget.userId,
                         currentUserId: widget.currentUserId,
                       ),
                     ),
                   );
                 },
-                child: Text("Pledge Gift"),
+                child: Text("View Gifts"),
               ),
             ),
           );

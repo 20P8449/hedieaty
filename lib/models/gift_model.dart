@@ -6,7 +6,8 @@ class GiftModel {
   double price; // Gift price
   String status; // Gift status (e.g., "Available", "Pledged")
   String eventFirebaseId; // Firebase event ID associated with the gift
-  String userId; // Firebase user ID
+  String userId; // Firebase user ID (owner of the gift)
+  String pledgedBy; // Firebase user ID (user who pledged the gift)
   String giftFirebaseId; // Firestore document ID
   bool published; // Indicates whether the gift is published
 
@@ -19,44 +20,42 @@ class GiftModel {
     required this.status,
     this.eventFirebaseId = '',
     this.userId = '',
+    this.pledgedBy = '', // Default empty if no one has pledged the gift
     this.giftFirebaseId = '',
     this.published = false,
   });
 
   /// Convert the GiftModel to a Map for SQLite or Firestore storage
   Map<String, dynamic> toMap() {
-    final map = {
+    return {
       'id': id,
       'name': name,
       'description': description,
       'category': category,
       'price': price,
       'status': status,
-      'eventFirebaseId': eventFirebaseId, // Link to associated event
-      'userId': userId, // Link to Firebase user
-      'giftFirebaseId': giftFirebaseId, // Firestore document ID
-      'published': published ? 1 : 0, // Convert bool to int for SQLite compatibility
-    };
-
-    // Remove null or empty fields for Firestore
-    map.removeWhere((key, value) => value == null || value == '');
-
-    return map;
+      'eventFirebaseId': eventFirebaseId,
+      'userId': userId,
+      'pledgedBy': pledgedBy, // Add pledgedBy for tracking
+      'giftFirebaseId': giftFirebaseId,
+      'published': published ? 1 : 0, // SQLite compatibility
+    }..removeWhere((key, value) => value == null || value == '');
   }
 
-  /// Create a GiftModel instance from a Map (e.g., SQLite row or Firestore document)
+  /// Create a GiftModel instance from a Map (SQLite row or Firestore document)
   factory GiftModel.fromMap(Map<String, dynamic> map) {
     return GiftModel(
-      id: map['id'], // SQLite ID
-      name: map['name'] ?? '', // Default to empty string if null
-      description: map['description'] ?? '', // Default to empty string if null
-      category: map['category'] ?? '', // Default to empty string if null
-      price: (map['price'] as num?)?.toDouble() ?? 0.0, // Convert price to double
-      status: map['status'] ?? '', // Default to empty string if null
-      eventFirebaseId: map['eventFirebaseId'] ?? '', // Restore event ID
-      userId: map['userId'] ?? '', // Restore user ID
-      giftFirebaseId: map['giftFirebaseId'] ?? '', // Restore Firestore document ID
-      published: (map['published'] == 1 || map['published'] == true), // Handle both SQLite int and Firestore bool
+      id: map['id'],
+      name: map['name'] ?? '',
+      description: map['description'] ?? '',
+      category: map['category'] ?? '',
+      price: (map['price'] as num?)?.toDouble() ?? 0.0,
+      status: map['status'] ?? '',
+      eventFirebaseId: map['eventFirebaseId'] ?? '',
+      userId: map['userId'] ?? '',
+      pledgedBy: map['pledgedBy'] ?? '', // Retrieve pledgedBy field
+      giftFirebaseId: map['giftFirebaseId'] ?? '',
+      published: (map['published'] == 1 || map['published'] == true),
     );
   }
 
@@ -70,6 +69,7 @@ class GiftModel {
     String? status,
     String? eventFirebaseId,
     String? userId,
+    String? pledgedBy,
     String? giftFirebaseId,
     bool? published,
   }) {
@@ -80,10 +80,11 @@ class GiftModel {
       category: category ?? this.category,
       price: price ?? this.price,
       status: status ?? this.status,
-      eventFirebaseId: eventFirebaseId ?? this.eventFirebaseId, // Maintain existing event ID if not updated
-      userId: userId ?? this.userId, // Maintain existing user ID if not updated
-      giftFirebaseId: giftFirebaseId ?? this.giftFirebaseId, // Maintain existing Firestore ID if not updated
-      published: published ?? this.published, // Maintain existing published state if not updated
+      eventFirebaseId: eventFirebaseId ?? this.eventFirebaseId,
+      userId: userId ?? this.userId,
+      pledgedBy: pledgedBy ?? this.pledgedBy, // Maintain existing pledgedBy field
+      giftFirebaseId: giftFirebaseId ?? this.giftFirebaseId,
+      published: published ?? this.published,
     );
   }
 
@@ -97,6 +98,7 @@ class GiftModel {
       'status': status,
       'eventFirebaseId': eventFirebaseId,
       'userId': userId,
+      'pledgedBy': pledgedBy, // Include pledgedBy in Firestore data
       'published': published,
     }..removeWhere((key, value) => value == null || value == '');
   }
@@ -111,8 +113,43 @@ class GiftModel {
       status: map['status'] ?? '',
       eventFirebaseId: map['eventFirebaseId'] ?? '',
       userId: map['userId'] ?? '',
+      pledgedBy: map['pledgedBy'] ?? '', // Retrieve pledgedBy from Firestore
       giftFirebaseId: map['giftFirebaseId'] ?? '',
-      published: map['published'] == true, // Firestore stores boolean values
+      published: map['published'] == true,
+    );
+  }
+
+  /// Convert the GiftModel to a JSON-compatible Map (for APIs or backups)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'category': category,
+      'price': price,
+      'status': status,
+      'eventFirebaseId': eventFirebaseId,
+      'userId': userId,
+      'pledgedBy': pledgedBy, // Include pledgedBy in JSON
+      'giftFirebaseId': giftFirebaseId,
+      'published': published,
+    };
+  }
+
+  /// Create a GiftModel instance from JSON data
+  factory GiftModel.fromJson(Map<String, dynamic> json) {
+    return GiftModel(
+      id: json['id'],
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
+      category: json['category'] ?? '',
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      status: json['status'] ?? '',
+      eventFirebaseId: json['eventFirebaseId'] ?? '',
+      userId: json['userId'] ?? '',
+      pledgedBy: json['pledgedBy'] ?? '', // Retrieve pledgedBy from JSON
+      giftFirebaseId: json['giftFirebaseId'] ?? '',
+      published: json['published'] == true,
     );
   }
 }
