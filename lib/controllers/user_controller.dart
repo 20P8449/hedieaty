@@ -15,7 +15,8 @@ class UserController {
       String mobile,
       ) async {
     // Call AuthService to sign up the user with the additional mobile field
-    UserModel? user = await _authService.signUp(email, password, name, preferences, mobile);
+    UserModel? user =
+    await _authService.signUp(email, password, name, preferences, mobile);
     if (user != null) {
       // Save the user in the local SQLite database, including mobile
       await _dbHelper.insertUser(user);
@@ -80,5 +81,54 @@ class UserController {
       return profileImage;
     }
     return null; // Return null if the profile image doesn't exist
+  }
+
+  // Fetch the User's Email by Firebase ID
+  Future<String?> getUserEmail(String firebaseId) async {
+    final user = await _dbHelper.getUserByFirebaseId(firebaseId);
+    if (user != null) {
+      return user.email;
+    }
+    return null; // Return null if email doesn't exist
+  }
+
+  // Fetch the User's Phone Number by Firebase ID
+  Future<String?> getUserPhone(String firebaseId) async {
+    final user = await _dbHelper.getUserByFirebaseId(firebaseId);
+    if (user != null) {
+      return user.mobile;
+    }
+    return null; // Return null if phone number doesn't exist
+  }
+
+  // Update the User's Profile Information
+  Future<void> updateUserProfile(
+      String firebaseId, {
+        String? email,
+        String? phone,
+        String? username,
+        String? password,
+      }) async {
+    // Update in SQLite database
+    final user = await _dbHelper.getUserByFirebaseId(firebaseId);
+    if (user != null) {
+      final updatedUser = user.copyWith(
+        email: email ?? user.email,
+        mobile: phone ?? user.mobile,
+        name: username ?? user.name,
+      );
+      await _dbHelper.updateUser(updatedUser);
+
+      // Update in AuthService (if needed)
+      await _authService.updateUserProfile(
+        firebaseId: firebaseId, // Pass the Firebase ID
+        email: email, // Pass the updated email
+        mobile: phone, // Pass the updated phone number
+        username: username, // Pass the updated username
+        password: password, // Pass the updated password
+      );
+    } else {
+      throw Exception('User not found.');
+    }
   }
 }

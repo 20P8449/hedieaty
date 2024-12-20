@@ -34,4 +34,21 @@ class UserModel {
       mobile: map['mobile'], // Added mobile from map
     );
   }
+
+  // Create a new UserModel with updated fields
+  UserModel copyWith({
+    String? name,
+    String? email,
+    String? firebaseId,
+    String? preferences,
+    String? mobile,
+  }) {
+    return UserModel(
+      name: name ?? this.name,
+      email: email ?? this.email,
+      firebaseId: firebaseId ?? this.firebaseId,
+      preferences: preferences ?? this.preferences,
+      mobile: mobile ?? this.mobile,
+    );
+  }
 }

@@ -23,6 +23,7 @@ class GiftListPage extends StatefulWidget {
 class _GiftListPageState extends State<GiftListPage> {
   final GiftController _giftController = GiftController();
   List<GiftModel> gifts = [];
+  String sortCriteria = 'name'; // Default sorting criteria
 
   @override
   void initState() {
@@ -40,12 +41,28 @@ class _GiftListPageState extends State<GiftListPage> {
       );
       if (mounted) {
         setState(() {
-          gifts = loadedGifts;
+          gifts = sortGifts(loadedGifts); // Sort gifts after fetching
         });
       }
     } catch (e) {
       print('Error loading gifts: $e');
     }
+  }
+
+  // Sort gifts based on the selected criteria
+  List<GiftModel> sortGifts(List<GiftModel> gifts) {
+    switch (sortCriteria) {
+      case 'name':
+        gifts.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case 'category':
+        gifts.sort((a, b) => a.category.compareTo(b.category));
+        break;
+      case 'price':
+        gifts.sort((a, b) => a.price.compareTo(b.price));
+        break;
+    }
+    return gifts;
   }
 
   // Mark a gift as pledged
@@ -112,6 +129,22 @@ class _GiftListPageState extends State<GiftListPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Gifts for ${widget.selectedEventName}'),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              setState(() {
+                sortCriteria = value; // Update the sorting criteria
+                gifts = sortGifts(gifts); // Apply sorting
+              });
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(value: 'name', child: Text('Sort by Name')),
+              PopupMenuItem(value: 'category', child: Text('Sort by Category')),
+              PopupMenuItem(value: 'price', child: Text('Sort by Price')),
+            ],
+            icon: Icon(Icons.sort),
+          ),
+        ],
       ),
       body: gifts.isEmpty
           ? Center(child: Text('No gifts available for this event.'))
@@ -149,7 +182,7 @@ class _GiftListPageState extends State<GiftListPage> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Text(
-                'Category: ${gift.category}\nStatus: ${gift.status}\nPublished: ${gift.published ? "Yes" : "No"}',
+                'Category: ${gift.category}\nPrice: ${gift.price.toStringAsFixed(2)}\nPublished: ${gift.published ? "Yes" : "No"}',
               ),
               trailing: isOwner
                   ? Row(
@@ -166,12 +199,10 @@ class _GiftListPageState extends State<GiftListPage> {
                             onSave: (updatedGiftData) async {
                               final updatedGift = gift.copyWith(
                                 name: updatedGiftData['name'],
-                                description:
-                                updatedGiftData['description'],
+                                description: updatedGiftData['description'],
                                 category: updatedGiftData['category'],
                                 price: updatedGiftData['price'],
-                                photoLink:
-                                updatedGiftData['photoLink'],
+                                photoLink: updatedGiftData['photoLink'],
                               );
                               await updateGift(updatedGift);
                             },

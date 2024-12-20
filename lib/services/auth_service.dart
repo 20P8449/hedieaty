@@ -124,4 +124,40 @@ class AuthService {
     }
     return null;
   }
+
+  // Update user profile in Firestore and FirebaseAuth
+  Future<void> updateUserProfile({
+    required String firebaseId,
+    String? username, // Added username parameter
+    String? email,
+    String? mobile,
+    String? password,
+  }) async {
+    try {
+      Map<String, dynamic> updatedData = {};
+      if (username != null) updatedData['name'] = username; // Update username
+      if (email != null) updatedData['email'] = email;
+      if (mobile != null) updatedData['mobile'] = mobile;
+
+      // Update Firestore
+      await _firestore.collection('users').doc(firebaseId).update(updatedData);
+
+      User? user = _auth.currentUser;
+      if (user != null) {
+        // Update email in FirebaseAuth
+        if (email != null) {
+          await user.updateEmail(email);
+        }
+        // Update password in FirebaseAuth
+        if (password != null) {
+          await user.updatePassword(password);
+        }
+      }
+
+      print("User profile updated successfully for UID: $firebaseId");
+    } catch (e) {
+     // print("Error updating user profile: $e");
+     // throw Exception("Error updating user profile.");
+    }
+  }
 }

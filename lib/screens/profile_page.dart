@@ -15,6 +15,8 @@ class _ProfilePageState extends State<ProfilePage>
   String userName = "Loading...";
   String profileImageUrl = 'https://via.placeholder.com/150';
   String? userId;
+  String userEmail = "Loading...";
+  String userPhone = "Loading...";
   bool isLoading = true;
   late AnimationController _animationController;
 
@@ -38,13 +40,15 @@ class _ProfilePageState extends State<ProfilePage>
     try {
       final firebaseId = await _userController.getCurrentUserId();
       final name = await _userController.getUserName(firebaseId);
-      final imageUrl =
-      await _userController.getUserProfileImage(firebaseId);
+      final imageUrl = await _userController.getUserProfileImage(firebaseId);
+      final email = await _userController.getUserEmail(firebaseId);
+      final phone = await _userController.getUserPhone(firebaseId);
       setState(() {
         userName = name;
-        profileImageUrl =
-            imageUrl ?? 'https://via.placeholder.com/150';
+        profileImageUrl = imageUrl ?? 'https://via.placeholder.com/150';
         userId = firebaseId;
+        userEmail = email ?? "Unknown";
+        userPhone = phone ?? "Unknown";
         isLoading = false;
       });
     } catch (e) {
@@ -61,8 +65,7 @@ class _ProfilePageState extends State<ProfilePage>
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              SignInPage(),
+          pageBuilder: (context, animation, secondaryAnimation) => SignInPage(),
           transitionsBuilder:
               (context, animation, secondaryAnimation, child) {
             const begin = Offset(1.0, 0.0);
@@ -84,12 +87,116 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
-  void showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-      ),
+  void showEditProfileDialog() {
+    final TextEditingController emailController =
+    TextEditingController(text: userEmail);
+    final TextEditingController phoneController =
+    TextEditingController(text: userPhone);
+    final TextEditingController passwordController = TextEditingController();
+    final TextEditingController nameController =
+    TextEditingController(text: userName);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          title: Text(
+            "Edit Profile",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: "Username",
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: emailController,
+                  decoration: InputDecoration(
+                    labelText: "Email",
+                    prefixIcon: Icon(Icons.email),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: phoneController,
+                  decoration: InputDecoration(
+                    labelText: "Phone",
+                    prefixIcon: Icon(Icons.phone),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  decoration: InputDecoration(
+                    labelText: "Password",
+                    prefixIcon: Icon(Icons.lock),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                  ),
+                  obscureText: true,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                try {
+                  await _userController.updateUserProfile(
+                    userId!,
+                    email: emailController.text.trim(),
+                    phone: phoneController.text.trim(),
+                    password: passwordController.text.trim(),
+                    username: nameController.text.trim(),
+                  );
+                  setState(() {
+                    userEmail = emailController.text.trim();
+                    userPhone = phoneController.text.trim();
+                    userName = nameController.text.trim();
+                  });
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Profile updated successfully!")),
+                  );
+                } catch (e) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error updating profile: $e")),
+                  );
+                }
+              },
+              child: Text("Save"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text("Cancel"),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -100,9 +207,24 @@ class _ProfilePageState extends State<ProfilePage>
         title: Text('Profile'),
         actions: [
           IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () {
+              setState(() {
+                isLoading = true;
+              });
+              loadUserProfile();
+            },
+          ),
+          IconButton(
             icon: Icon(Icons.edit),
             onPressed: () {
-              showSnackBar("Edit Profile feature coming soon!");
+              if (userId != null) {
+                showEditProfileDialog();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("User ID not available")),
+                );
+              }
             },
           ),
         ],
@@ -111,115 +233,100 @@ class _ProfilePageState extends State<ProfilePage>
           ? Center(child: CircularProgressIndicator())
           : FadeTransition(
         opacity: _animationController,
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Center(
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundImage: NetworkImage(profileImageUrl),
+              CircleAvatar(
+                radius: 60,
+                backgroundImage: NetworkImage(profileImageUrl),
+              ),
+              SizedBox(height: 20),
+              Text(
+                userName,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               SizedBox(height: 16),
-              Center(
-                child: Text(
-                  userName,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+              Card(
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  leading: Icon(Icons.email, color: Colors.blue),
+                  title: Text('Email'),
+                  subtitle: Text(userEmail),
                 ),
               ),
-              SizedBox(height: 16),
-              ListTile(
-                leading: Icon(Icons.event, color: Colors.blue),
-                title: Text('My Events'),
-                subtitle:
-                Text('View and manage your created events'),
-                onTap: () {
-                  if (userId != null) {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation,
-                            secondaryAnimation) =>
-                            EventListPage(
-                              userId: userId!,
-                              currentUserId: userId!,
-                            ),
-                        transitionsBuilder: (context, animation,
-                            secondaryAnimation, child) {
-                          const begin = Offset(1.0, 0.0);
-                          const end = Offset.zero;
-                          const curve = Curves.easeInOut;
-
-                          var tween = Tween(begin: begin, end: end)
-                              .chain(CurveTween(curve: curve));
-                          var offsetAnimation =
-                          animation.drive(tween);
-
-                          return SlideTransition(
-                              position: offsetAnimation, child: child);
-                        },
-                      ),
-                    );
-                  } else {
-                    showSnackBar("User ID not available");
-                  }
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.favorite, color: Colors.blue),
-                title: Text('My Pledged Gifts'),
-                subtitle:
-                Text('View and manage your pledged gifts'),
-                onTap: () {
-                  if (userId != null) {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation,
-                            secondaryAnimation) =>
-                            MyPledgedGiftsPage(userId: userId!),
-                        transitionsBuilder: (context, animation,
-                            secondaryAnimation, child) {
-                          const begin = Offset(1.0, 0.0);
-                          const end = Offset.zero;
-                          const curve = Curves.easeInOut;
-
-                          var tween = Tween(begin: begin, end: end)
-                              .chain(CurveTween(curve: curve));
-                          var offsetAnimation =
-                          animation.drive(tween);
-
-                          return SlideTransition(
-                              position: offsetAnimation, child: child);
-                        },
-                      ),
-                    );
-                  } else {
-                    showSnackBar("User ID not available");
-                  }
-                },
+              Card(
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  leading: Icon(Icons.phone, color: Colors.green),
+                  title: Text('Phone'),
+                  subtitle: Text(userPhone),
+                ),
               ),
               Divider(),
-              ListTile(
-                leading: Icon(Icons.settings, color: Colors.grey),
-                title: Text('Settings'),
-                subtitle:
-                Text('Manage your account settings'),
-                onTap: () {
-                  showSnackBar("Settings feature coming soon!");
-                },
+              Card(
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  leading: Icon(Icons.event, color: Colors.purple),
+                  title: Text('My Events'),
+                  onTap: () {
+                    if (userId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EventListPage(
+                            userId: userId!,
+                            currentUserId: userId!,
+                          ),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("User ID not available")),
+                      );
+                    }
+                  },
+                ),
               ),
-              ListTile(
-                leading: Icon(Icons.logout, color: Colors.red),
-                title: Text('Logout'),
-                onTap: () {
-                  logoutUser();
-                },
+              Card(
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  leading: Icon(Icons.favorite, color: Colors.red),
+                  title: Text('My Pledged Gifts'),
+                  onTap: () {
+                    if (userId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              MyPledgedGiftsPage(userId: userId!),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("User ID not available")),
+                      );
+                    }
+                  },
+                ),
+              ),
+              Divider(),
+              Card(
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  leading: Icon(Icons.logout, color: Colors.red),
+                  title: Text('Logout'),
+                  onTap: logoutUser,
+                ),
               ),
             ],
           ),

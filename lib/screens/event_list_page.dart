@@ -17,6 +17,7 @@ class _EventListPageState extends State<EventListPage> {
   final EventController _eventController = EventController();
   List<EventModel> events = [];
   int upcomingEventCount = 0;
+  String sortCriteria = 'name'; // Default sorting criteria
 
   @override
   void initState() {
@@ -31,20 +32,56 @@ class _EventListPageState extends State<EventListPage> {
 
       // Parse dates and filter upcoming events
       final now = DateTime.now();
-      final upcomingEvents = allEvents
-          .where((event) {
+      final upcomingEvents = allEvents.where((event) {
         final eventDate = DateTime.tryParse(event.date);
         return eventDate != null && eventDate.isAfter(now);
-      })
-          .toList();
+      }).toList();
 
       setState(() {
-        events = allEvents; // Show all events
+        events = sortEvents(allEvents); // Sort events after fetching
         upcomingEventCount = upcomingEvents.length; // Count upcoming events
       });
     } catch (e) {
       print('Error loading events: $e');
     }
+  }
+
+  // Sort events based on the selected criteria
+  List<EventModel> sortEvents(List<EventModel> events) {
+    switch (sortCriteria) {
+      case 'name':
+        events.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case 'category':
+        events.sort((a, b) => a.description.compareTo(b.description)); // Assuming category is stored in the description
+        break;
+      case 'status':
+        final now = DateTime.now();
+        events.sort((a, b) {
+          final dateA = DateTime.tryParse(a.date);
+          final dateB = DateTime.tryParse(b.date);
+
+          final statusA = dateA == null
+              ? 'Unknown'
+              : dateA.isBefore(now)
+              ? 'Past'
+              : dateA.isAfter(now)
+              ? 'Upcoming'
+              : 'Current';
+
+          final statusB = dateB == null
+              ? 'Unknown'
+              : dateB.isBefore(now)
+              ? 'Past'
+              : dateB.isAfter(now)
+              ? 'Upcoming'
+              : 'Current';
+
+          return statusA.compareTo(statusB);
+        });
+        break;
+    }
+    return events;
   }
 
   @override
@@ -65,6 +102,20 @@ class _EventListPageState extends State<EventListPage> {
                 ),
               ),
             ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              setState(() {
+                sortCriteria = value; // Update the sorting criteria
+                events = sortEvents(events); // Apply sorting
+              });
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(value: 'name', child: Text('Sort by Name')),
+              PopupMenuItem(value: 'category', child: Text('Sort by Category')),
+              PopupMenuItem(value: 'status', child: Text('Sort by Status')),
+            ],
+            icon: Icon(Icons.sort),
+          ),
         ],
       ),
       body: events.isEmpty
@@ -179,6 +230,7 @@ class _EventListPageState extends State<EventListPage> {
   }
 }
 
+// EventDialog Class
 class EventDialog extends StatefulWidget {
   final Function(EventModel) onSave;
   final String title;

@@ -106,68 +106,96 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : friends.isEmpty
-          ? Center(child: Text("No friends found"))
-          : ListView.builder(
-        itemCount: friends.length,
-        itemBuilder: (context, index) {
-          final friend = friends[index];
-          final upcomingCount =
-              upcomingEventsCount[friend['id']] ?? 0; // Get count
-          return Card(
-            elevation: 4,
-            margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.blueAccent,
-                child: Icon(Icons.person, color: Colors.white),
-              ),
-              title: Text(
-                friend['name'],
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              subtitle: Text(
-                "${friend['mobile']}\nUpcoming Events: $upcomingCount", // Display count
-                style: TextStyle(fontSize: 14),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      removeFriend(friend['id']);
-                    },
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent),
-                    child: Text(
-                      "Remove Friend",
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-              onTap: () {
-                // Navigate to friend's event list with userId
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton.icon(
+              onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => EventListPage(
-                      userId: friend['id'], // Pass userId
-                      currentUserId:
-                      FirebaseAuth.instance.currentUser?.uid ?? '',
+                      userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                      currentUserId: FirebaseAuth.instance.currentUser?.uid ?? '',
                     ),
                   ),
                 );
               },
+              icon: Icon(Icons.add),
+              label: Text("Create Your Own Event/List"),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                textStyle: TextStyle(fontSize: 16),
+              ),
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: isLoading
+                ? Center(child: CircularProgressIndicator())
+                : friends.isEmpty
+                ? Center(child: Text("No friends found"))
+                : ListView.builder(
+              itemCount: friends.length,
+              itemBuilder: (context, index) {
+                final friend = friends[index];
+                final upcomingCount =
+                    upcomingEventsCount[friend['id']] ?? 0; // Get count
+                return Card(
+                  elevation: 4,
+                  margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.blueAccent,
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
+                    title: Text(
+                      friend['name'],
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    subtitle: Text(
+                      "${friend['mobile']}\nUpcoming Events: $upcomingCount", // Display count
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            removeFriend(friend['id']);
+                          },
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent),
+                          child: Text(
+                            "Remove Friend",
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      // Navigate to friend's event list with userId
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EventListPage(
+                            userId: friend['id'], // Pass userId
+                            currentUserId:
+                            FirebaseAuth.instance.currentUser?.uid ?? '',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

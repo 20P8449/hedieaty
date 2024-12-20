@@ -45,22 +45,19 @@ class DBHelper {
         ''');
         await db.execute('''
           CREATE TABLE gifts (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          description TEXT,
-          category TEXT,
-          price REAL NOT NULL,
-          status TEXT,
-          eventFirebaseId TEXT NOT NULL,
-          userId TEXT NOT NULL,
-          pledgedBy TEXT, -- Column for the user who pledged the gift
-          giftFirebaseId TEXT UNIQUE,
-          published INTEGER NOT NULL DEFAULT 0,
-          photoLink TEXT -- Column for storing the photo link
-        );
-
-
-
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            category TEXT,
+            price REAL NOT NULL,
+            status TEXT,
+            eventFirebaseId TEXT NOT NULL,
+            userId TEXT NOT NULL,
+            pledgedBy TEXT, -- Column for the user who pledged the gift
+            giftFirebaseId TEXT UNIQUE,
+            published INTEGER NOT NULL DEFAULT 0,
+            photoLink TEXT -- Column for storing the photo link
+          )
         ''');
       },
       version: 1,
@@ -70,13 +67,21 @@ class DBHelper {
   // Insert User into SQLite
   Future<void> insertUser(UserModel user) async {
     final db = await database;
-    await db.insert('users', user.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'users',
+      user.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   // Fetch User by Firebase ID
   Future<UserModel?> getUserByFirebaseId(String firebaseId) async {
     final db = await database;
-    final result = await db.query('users', where: 'firebaseId = ?', whereArgs: [firebaseId]);
+    final result = await db.query(
+      'users',
+      where: 'firebaseId = ?',
+      whereArgs: [firebaseId],
+    );
     if (result.isNotEmpty) {
       return UserModel.fromMap(result.first);
     }
@@ -86,7 +91,11 @@ class DBHelper {
   // Fetch User by Mobile Phone in SQLite
   Future<UserModel?> getUserByMobile(String mobile) async {
     final db = await database;
-    final result = await db.query('users', where: 'mobile = ?', whereArgs: [mobile]);
+    final result = await db.query(
+      'users',
+      where: 'mobile = ?',
+      whereArgs: [mobile],
+    );
     if (result.isNotEmpty) {
       return UserModel.fromMap(result.first);
     }
@@ -101,6 +110,17 @@ class DBHelper {
       {'preferences': preferences},
       where: 'firebaseId = ?',
       whereArgs: [firebaseId],
+    );
+  }
+
+  // Update User Information in SQLite
+  Future<int> updateUser(UserModel user) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      user.toMap(),
+      where: 'firebaseId = ?',
+      whereArgs: [user.firebaseId],
     );
   }
 
