@@ -157,7 +157,6 @@ class _GiftListPageState extends State<GiftListPage> {
                                       description: updatedGiftData['description'],
                                       category: updatedGiftData['category'],
                                       price: updatedGiftData['price'],
-                                      status: updatedGiftData['status'],
                                     );
                                     await updateGift(updatedGift);
                                   },
@@ -201,7 +200,7 @@ class _GiftListPageState extends State<GiftListPage> {
                           'description': '',
                           'category': '',
                           'price': 0.0,
-                          'status': 'Available',
+                          'status': 'Available', // Default status set to "Available"
                         },
                         onSave: (newGiftData) async {
                           final newGift = GiftModel(
@@ -210,7 +209,7 @@ class _GiftListPageState extends State<GiftListPage> {
                             description: newGiftData['description'],
                             category: newGiftData['category'],
                             price: newGiftData['price'],
-                            status: newGiftData['status'],
+                            status: 'Available', // Status always set to "Available"
                             published: false,
                             eventFirebaseId: widget.selectedEventId,
                             userId: widget.userId,

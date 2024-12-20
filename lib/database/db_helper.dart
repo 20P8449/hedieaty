@@ -19,7 +19,7 @@ class DBHelper {
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
     return await openDatabase(
-      join(dbPath, 'app_databasee.db'),
+      join(dbPath, 'app_database12345.db'),
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE users (
@@ -53,9 +53,11 @@ class DBHelper {
           status TEXT,
           eventFirebaseId TEXT NOT NULL,
           userId TEXT NOT NULL,
+          pledgedBy TEXT, -- Added column for the user who pledged the gift
           giftFirebaseId TEXT UNIQUE,
           published INTEGER NOT NULL DEFAULT 0
-        );
+);
+
 
         ''');
       },

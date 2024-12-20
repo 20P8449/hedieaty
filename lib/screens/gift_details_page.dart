@@ -16,7 +16,6 @@ class _GiftDetailsPageState extends State<GiftDetailsPage> {
   late TextEditingController _descriptionController;
   late TextEditingController _categoryController;
   late TextEditingController _priceController;
-  String status = 'Available';
 
   @override
   void initState() {
@@ -28,7 +27,6 @@ class _GiftDetailsPageState extends State<GiftDetailsPage> {
         TextEditingController(text: widget.gift['category']);
     _priceController =
         TextEditingController(text: widget.gift['price']?.toString() ?? '');
-    status = widget.gift['status'];
   }
 
   @override
@@ -82,23 +80,8 @@ class _GiftDetailsPageState extends State<GiftDetailsPage> {
                 },
               ),
               SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: status,
-                decoration: InputDecoration(labelText: 'Status'),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    status = newValue!;
-                  });
-                },
-                items: <String>['Available', 'Pledged']
-                    .map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-              ),
-              SizedBox(height: 16),
+              // The status is no longer displayed as a field for the user to edit.
+              // It will always be set to 'Available'.
               ElevatedButton(
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
@@ -107,7 +90,7 @@ class _GiftDetailsPageState extends State<GiftDetailsPage> {
                       'description': _descriptionController.text.trim(),
                       'category': _categoryController.text.trim(),
                       'price': double.tryParse(_priceController.text.trim()),
-                      'status': status,
+                      'status': 'Available', // Always set status to 'Available'
                     };
                     widget.onSave(updatedGift);
                     Navigator.of(context).pop();

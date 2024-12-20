@@ -116,6 +116,30 @@ class EventController {
     }
   }
 
+  // Fetch Event Name by Event ID
+  Future<String> getEventNameById(String eventFirebaseId) async {
+    try {
+      // Fetch event by Firebase ID from SQLite
+      final db = await _dbHelper.database;
+      final result = await db.query(
+        'events',
+        where: 'eventFirebaseId = ?',
+        whereArgs: [eventFirebaseId],
+        limit: 1,
+      );
+
+      if (result.isNotEmpty) {
+        final event = EventModel.fromMap(result.first);
+        return event.name;
+      } else {
+        throw Exception('Event not found for Firebase ID: $eventFirebaseId');
+      }
+    } catch (e) {
+      print('Error fetching event name by ID: $e');
+      throw Exception('Failed to fetch event name.');
+    }
+  }
+
   // Fetch Upcoming Events by User ID (for future dates)
   Future<List<EventModel>> getUpcomingEventsByUserId(String userId) async {
     try {

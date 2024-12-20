@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controllers/gift_controller.dart';
+import '../controllers/event_controller.dart';
+import '../controllers/user_controller.dart';
 import '../models/gift_model.dart';
 
 class MyPledgedGiftsPage extends StatefulWidget {
@@ -13,7 +15,11 @@ class MyPledgedGiftsPage extends StatefulWidget {
 
 class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
   final GiftController _giftController = GiftController();
+  final EventController _eventController = EventController();
+  final UserController _userController = UserController(); // For user details
   List<GiftModel> pledgedGifts = [];
+  Map<String, String> eventNames = {}; // Cache for event names
+  Map<String, String> userNames = {}; // Cache for user names
 
   @override
   void initState() {
@@ -25,8 +31,26 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
   Future<void> loadPledgedGifts() async {
     try {
       final allGifts = await _giftController.getAllGifts(widget.userId); // Fetch all gifts
+      final pledgedGiftsList = allGifts.where((gift) => gift.status == 'Pledged').toList();
+
+      // Fetch event names and user names for each pledged gift
+      for (var gift in pledgedGiftsList) {
+        if (!eventNames.containsKey(gift.eventFirebaseId)) {
+          final eventName = await _eventController.getEventNameById(gift.eventFirebaseId);
+          if (eventName != null) {
+            eventNames[gift.eventFirebaseId] = eventName;
+          }
+        }
+        if (gift.pledgedBy.isNotEmpty && !userNames.containsKey(gift.pledgedBy)) {
+          final userName = await _userController.getUserNameById(gift.pledgedBy);
+          if (userName != null) {
+            userNames[gift.pledgedBy] = userName;
+          }
+        }
+      }
+
       setState(() {
-        pledgedGifts = allGifts.where((gift) => gift.status == 'Pledged').toList();
+        pledgedGifts = pledgedGiftsList;
       });
     } catch (e) {
       print('Error loading pledged gifts: $e');
@@ -56,6 +80,8 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
         itemCount: pledgedGifts.length,
         itemBuilder: (context, index) {
           final gift = pledgedGifts[index];
+          final eventName = eventNames[gift.eventFirebaseId] ?? 'Unknown Event';
+          final pledgedByName = userNames[gift.pledgedBy] ?? 'Unknown User';
           return Card(
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
@@ -66,7 +92,8 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
                 children: [
                   Text('Description: ${gift.description}'),
                   Text('Status: ${gift.status}'),
-                  Text('Event ID: ${gift.eventFirebaseId}'),
+                  Text('Event: $eventName'),
+                  Text('Pledged By: $pledgedByName'), // New section
                 ],
               ),
               trailing: IconButton(
