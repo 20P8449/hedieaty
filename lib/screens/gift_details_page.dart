@@ -17,6 +17,7 @@ class _GiftDetailsPageState extends State<GiftDetailsPage>
   late TextEditingController _descriptionController;
   late TextEditingController _categoryController;
   late TextEditingController _priceController;
+  late TextEditingController _photoLinkController; // New controller for photo link
   late AnimationController _animationController;
 
   @override
@@ -33,6 +34,8 @@ class _GiftDetailsPageState extends State<GiftDetailsPage>
     _categoryController = TextEditingController(text: widget.gift['category']);
     _priceController =
         TextEditingController(text: widget.gift['price']?.toString() ?? '');
+    _photoLinkController =
+        TextEditingController(text: widget.gift['photoLink'] ?? ''); // Initialize with gift photo link
   }
 
   @override
@@ -41,6 +44,7 @@ class _GiftDetailsPageState extends State<GiftDetailsPage>
     _descriptionController.dispose();
     _categoryController.dispose();
     _priceController.dispose();
+    _photoLinkController.dispose(); // Dispose the new controller
     _animationController.dispose();
     super.dispose();
   }
@@ -136,6 +140,15 @@ class _GiftDetailsPageState extends State<GiftDetailsPage>
                     return null;
                   },
                 ),
+                SizedBox(height: 16),
+                TextFormField(
+                  controller: _photoLinkController,
+                  decoration: InputDecoration(
+                    labelText: 'Photo Link (Optional)',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.link),
+                  ),
+                ),
                 SizedBox(height: 20),
                 ElevatedButton.icon(
                   onPressed: () {
@@ -145,6 +158,7 @@ class _GiftDetailsPageState extends State<GiftDetailsPage>
                         'description': _descriptionController.text.trim(),
                         'category': _categoryController.text.trim(),
                         'price': double.tryParse(_priceController.text.trim()),
+                        'photoLink': _photoLinkController.text.trim(), // Save the photo link
                         'status': 'Available', // Always set status to 'Available'
                       };
                       widget.onSave(updatedGift);

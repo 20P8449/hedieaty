@@ -266,7 +266,7 @@ class GiftController {
           .get();
 
       for (var doc in querySnapshot.docs) {
-        final gift = GiftModel.fromMap(doc.data());
+        final gift = GiftModel.fromFirestore(doc.data());
         await _insertOrUpdateGift(gift.copyWith(giftFirebaseId: doc.id));
       }
 

@@ -120,6 +120,7 @@ class _GiftListPageState extends State<GiftListPage> {
         itemBuilder: (context, index) {
           final gift = gifts[index];
           final isPledged = gift.status == 'Pledged';
+          final photoLink = gift.photoLink; // Assuming `photoLink` is a part of GiftModel
 
           return Card(
             elevation: 4,
@@ -128,7 +129,18 @@ class _GiftListPageState extends State<GiftListPage> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: ListTile(
-              leading: Icon(
+              leading: photoLink != null && photoLink.isNotEmpty
+                  ? Image.network(
+                photoLink,
+                width: 50,
+                height: 50,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  Icons.broken_image,
+                  color: Colors.red,
+                ),
+              )
+                  : Icon(
                 Icons.card_giftcard,
                 color: isPledged ? Colors.orange : Colors.blue,
               ),
@@ -158,6 +170,8 @@ class _GiftListPageState extends State<GiftListPage> {
                                 updatedGiftData['description'],
                                 category: updatedGiftData['category'],
                                 price: updatedGiftData['price'],
+                                photoLink:
+                                updatedGiftData['photoLink'],
                               );
                               await updateGift(updatedGift);
                             },
@@ -201,6 +215,7 @@ class _GiftListPageState extends State<GiftListPage> {
                     'category': '',
                     'price': 0.0,
                     'status': 'Available', // Default status set to "Available"
+                    'photoLink': '', // Default empty photo link
                   },
                   onSave: (newGiftData) async {
                     final newGift = GiftModel(
@@ -213,6 +228,7 @@ class _GiftListPageState extends State<GiftListPage> {
                       published: false,
                       eventFirebaseId: widget.selectedEventId,
                       userId: widget.userId,
+                      photoLink: newGiftData['photoLink'], // Save photo link
                     );
                     await addGift(newGift);
                   },

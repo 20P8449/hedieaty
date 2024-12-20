@@ -10,6 +10,7 @@ class GiftModel {
   String pledgedBy; // Firebase user ID (user who pledged the gift)
   String giftFirebaseId; // Firestore document ID
   bool published; // Indicates whether the gift is published
+  String? photoLink; // Optional photo link for the gift
 
   GiftModel({
     this.id,
@@ -23,6 +24,7 @@ class GiftModel {
     this.pledgedBy = '', // Default empty if no one has pledged the gift
     this.giftFirebaseId = '',
     this.published = false,
+    this.photoLink, // Initialize as null if not provided
   });
 
   /// Convert the GiftModel to a Map for SQLite or Firestore storage
@@ -39,6 +41,7 @@ class GiftModel {
       'pledgedBy': pledgedBy, // Add pledgedBy for tracking
       'giftFirebaseId': giftFirebaseId,
       'published': published ? 1 : 0, // SQLite compatibility
+      'photoLink': photoLink, // Include photo link
     }..removeWhere((key, value) => value == null || value == '');
   }
 
@@ -56,6 +59,7 @@ class GiftModel {
       pledgedBy: map['pledgedBy'] ?? '', // Retrieve pledgedBy field
       giftFirebaseId: map['giftFirebaseId'] ?? '',
       published: (map['published'] == 1 || map['published'] == true),
+      photoLink: map['photoLink'], // Retrieve photoLink field
     );
   }
 
@@ -72,6 +76,7 @@ class GiftModel {
     String? pledgedBy,
     String? giftFirebaseId,
     bool? published,
+    String? photoLink, // Add photoLink for copying
   }) {
     return GiftModel(
       id: id ?? this.id,
@@ -85,6 +90,7 @@ class GiftModel {
       pledgedBy: pledgedBy ?? this.pledgedBy, // Maintain existing pledgedBy field
       giftFirebaseId: giftFirebaseId ?? this.giftFirebaseId,
       published: published ?? this.published,
+      photoLink: photoLink ?? this.photoLink, // Copy photoLink
     );
   }
 
@@ -100,6 +106,7 @@ class GiftModel {
       'userId': userId,
       'pledgedBy': pledgedBy, // Include pledgedBy in Firestore data
       'published': published,
+      'photoLink': photoLink, // Include photo link in Firestore
     }..removeWhere((key, value) => value == null || value == '');
   }
 
@@ -116,6 +123,7 @@ class GiftModel {
       pledgedBy: map['pledgedBy'] ?? '', // Retrieve pledgedBy from Firestore
       giftFirebaseId: map['giftFirebaseId'] ?? '',
       published: map['published'] == true,
+      photoLink: map['photoLink'], // Retrieve photoLink from Firestore
     );
   }
 
@@ -133,6 +141,7 @@ class GiftModel {
       'pledgedBy': pledgedBy, // Include pledgedBy in JSON
       'giftFirebaseId': giftFirebaseId,
       'published': published,
+      'photoLink': photoLink, // Include photo link in JSON
     };
   }
 
@@ -150,6 +159,7 @@ class GiftModel {
       pledgedBy: json['pledgedBy'] ?? '', // Retrieve pledgedBy from JSON
       giftFirebaseId: json['giftFirebaseId'] ?? '',
       published: json['published'] == true,
+      photoLink: json['photoLink'], // Retrieve photo link from JSON
     );
   }
 }
