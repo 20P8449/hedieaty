@@ -59,12 +59,42 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> removeFriend(String friendId) async {
+    try {
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+      if (currentUserId == null) {
+        throw Exception("User not authenticated.");
+      }
+
+      await FriendService.removeFriend(currentUserId, friendId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Friend removed successfully.")),
+      );
+      await fetchFriends(); // Refresh the friend list
+    } catch (e) {
+      print("Error removing friend: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to remove friend.")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Hedeiaty'),
         actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () async {
+              setState(() {
+                isLoading = true;
+              });
+              await fetchFriends();
+            },
+          ),
           IconButton(
             icon: Icon(Icons.search),
             onPressed: () {
@@ -87,12 +117,40 @@ class _HomePageState extends State<HomePage> {
           final upcomingCount =
               upcomingEventsCount[friend['id']] ?? 0; // Get count
           return Card(
+            elevation: 4,
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: ListTile(
-              title: Text(friend['name']),
+              leading: CircleAvatar(
+                backgroundColor: Colors.blueAccent,
+                child: Icon(Icons.person, color: Colors.white),
+              ),
+              title: Text(
+                friend['name'],
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16),
+              ),
               subtitle: Text(
                 "${friend['mobile']}\nUpcoming Events: $upcomingCount", // Display count
                 style: TextStyle(fontSize: 14),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      removeFriend(friend['id']);
+                    },
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent),
+                    child: Text(
+                      "Remove Friend",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
               ),
               onTap: () {
                 // Navigate to friend's event list with userId
@@ -102,8 +160,7 @@ class _HomePageState extends State<HomePage> {
                     builder: (context) => EventListPage(
                       userId: friend['id'], // Pass userId
                       currentUserId:
-                      FirebaseAuth.instance.currentUser?.uid ??
-                          '',
+                      FirebaseAuth.instance.currentUser?.uid ?? '',
                     ),
                   ),
                 );
@@ -177,7 +234,8 @@ class FriendSearchDelegate extends SearchDelegate {
                       );
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text("${user['name']} has been added as a friend"),
+                          content:
+                          Text("${user['name']} has been added as a friend"),
                         ),
                       );
                     } catch (e) {

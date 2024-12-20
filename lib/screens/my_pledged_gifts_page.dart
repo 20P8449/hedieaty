@@ -31,7 +31,9 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
   Future<void> loadPledgedGifts() async {
     try {
       final allGifts = await _giftController.getAllGifts(widget.userId); // Fetch all gifts
-      final pledgedGiftsList = allGifts.where((gift) => gift.status == 'Pledged').toList();
+      final pledgedGiftsList = allGifts
+          .where((gift) => gift.status == 'Pledged' || gift.status == 'Purchased')
+          .toList();
 
       // Fetch event names and user names for each pledged gift
       for (var gift in pledgedGiftsList) {
@@ -70,6 +72,19 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
     }
   }
 
+  // Get color based on gift status
+  Color getStatusColor(String status) {
+    switch (status) {
+      case 'Pledged':
+        return Colors.orange;
+      case 'Purchased':
+        return Colors.red;
+      case 'Available':
+      default:
+        return Colors.green;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -85,7 +100,7 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
           return Card(
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
-              leading: Icon(Icons.card_giftcard, color: Colors.orange),
+              leading: Icon(Icons.card_giftcard, color: getStatusColor(gift.status)),
               title: Text(gift.name),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,7 +179,7 @@ class _EditPledgedGiftDialogState extends State<EditPledgedGiftDialog> {
                   _status = newValue!;
                 });
               },
-              items: ['Pledged', 'Available']
+              items: ['Available', 'Pledged', 'Purchased']
                   .map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(
                   value: value,

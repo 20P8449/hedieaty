@@ -88,6 +88,31 @@ class FriendService {
     }
   }
 
+  /// Remove a friend from the current user's friend list and vice versa
+  static Future<void> removeFriend(String currentUserId, String friendId) async {
+    try {
+      final batch = _firestore.batch();
+
+      // Remove the friend from the current user's friends list
+      final currentUserRef = _firestore.collection('users').doc(currentUserId);
+      batch.update(currentUserRef, {
+        'friends': FieldValue.arrayRemove([friendId]),
+      });
+
+      // Remove the current user from the friend's friends list
+      final friendRef = _firestore.collection('users').doc(friendId);
+      batch.update(friendRef, {
+        'friends': FieldValue.arrayRemove([currentUserId]),
+      });
+
+      await batch.commit();
+      print("Friend removed successfully: $friendId");
+    } catch (e) {
+      print("Error removing friend: $e");
+      throw Exception("Failed to remove friend.");
+    }
+  }
+
   /// Get the count of upcoming events for a specific friend ID
   static Future<int> getUpcomingEventCount(String friendId) async {
     try {

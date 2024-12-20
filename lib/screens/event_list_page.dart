@@ -74,8 +74,16 @@ class _EventListPageState extends State<EventListPage> {
         itemBuilder: (context, index) {
           final event = events[index];
           return Card(
+            elevation: 4,
+            margin: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: ListTile(
-              title: Text(event.name),
+              title: Text(
+                event.name,
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               subtitle: Text(
                 'Date: ${event.date}\nLocation: ${event.location}\nPublished: ${event.published ? "Yes" : "No"}',
               ),
@@ -104,7 +112,7 @@ class _EventListPageState extends State<EventListPage> {
                     },
                   ),
                   IconButton(
-                    icon: Icon(Icons.edit),
+                    icon: Icon(Icons.edit, color: Colors.blue),
                     onPressed: () {
                       showDialog(
                         context: context,
@@ -121,7 +129,7 @@ class _EventListPageState extends State<EventListPage> {
                     },
                   ),
                   IconButton(
-                    icon: Icon(Icons.delete),
+                    icon: Icon(Icons.delete, color: Colors.red),
                     onPressed: () async {
                       await _eventController.deleteEvent(event.id!);
                       loadEvents();
@@ -189,6 +197,7 @@ class EventDialog extends StatefulWidget {
 }
 
 class _EventDialogState extends State<EventDialog> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _dateController = TextEditingController();
   final _locationController = TextEditingController();
@@ -205,47 +214,75 @@ class _EventDialogState extends State<EventDialog> {
     }
   }
 
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (pickedDate != null) {
+      setState(() {
+        _dateController.text = pickedDate.toIso8601String().split('T').first;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(widget.title),
-      content: SingleChildScrollView(
-        child: Column(
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: InputDecoration(labelText: 'Name'),
-            ),
-            TextField(
-              controller: _dateController,
-              decoration: InputDecoration(labelText: 'Date (YYYY-MM-DD)'),
-            ),
-            TextField(
-              controller: _locationController,
-              decoration: InputDecoration(labelText: 'Location'),
-            ),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(labelText: 'Description'),
-            ),
-          ],
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _nameController,
+                decoration: InputDecoration(labelText: 'Name'),
+                validator: (value) => value == null || value.isEmpty ? 'Name is required' : null,
+              ),
+              GestureDetector(
+                onTap: () => _selectDate(context),
+                child: AbsorbPointer(
+                  child: TextFormField(
+                    controller: _dateController,
+                    decoration: InputDecoration(labelText: 'Date (Select from Calendar)'),
+                    validator: (value) => value == null || value.isEmpty ? 'Date is required' : null,
+                  ),
+                ),
+              ),
+              TextFormField(
+                controller: _locationController,
+                decoration: InputDecoration(labelText: 'Location'),
+                validator: (value) => value == null || value.isEmpty ? 'Location is required' : null,
+              ),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: InputDecoration(labelText: 'Description'),
+                validator: (value) => value == null || value.isEmpty ? 'Description is required' : null,
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () {
-            final event = EventModel(
-              id: widget.initialEvent?.id,
-              name: _nameController.text.trim(),
-              date: _dateController.text.trim(),
-              location: _locationController.text.trim(),
-              description: _descriptionController.text.trim(),
-              userId: widget.userId,
-              eventFirebaseId: widget.initialEvent?.eventFirebaseId ?? '',
-              published: widget.initialEvent?.published ?? false,
-            );
-            widget.onSave(event);
-            Navigator.of(context).pop();
+            if (_formKey.currentState!.validate()) {
+              final event = EventModel(
+                id: widget.initialEvent?.id,
+                name: _nameController.text.trim(),
+                date: _dateController.text.trim(),
+                location: _locationController.text.trim(),
+                description: _descriptionController.text.trim(),
+                userId: widget.userId,
+                eventFirebaseId: widget.initialEvent?.eventFirebaseId ?? '',
+                published: widget.initialEvent?.published ?? false,
+              );
+              widget.onSave(event);
+              Navigator.of(context).pop();
+            }
           },
           child: Text('Save'),
         ),

@@ -113,120 +113,119 @@ class _GiftListPageState extends State<GiftListPage> {
       appBar: AppBar(
         title: Text('Gifts for ${widget.selectedEventName}'),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: gifts.isEmpty
-                ? Center(child: Text('No gifts available for this event.'))
-                : ListView.builder(
-              itemCount: gifts.length,
-              itemBuilder: (context, index) {
-                final gift = gifts[index];
-                final isPledged = gift.status == 'Pledged';
-                return Card(
-                  margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.card_giftcard,
-                      color: isPledged ? Colors.orange : Colors.blue,
-                    ),
-                    title: Text(gift.name),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Category: ${gift.category}'),
-                        Text('Status: ${gift.status}'),
-                        if (isOwner) Text('Published: ${gift.published ? "Yes" : "No"}'),
-                      ],
-                    ),
-                    trailing: isOwner
-                        ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.edit),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => GiftDetailsPage(
-                                  gift: gift.toMap(),
-                                  onSave: (updatedGiftData) async {
-                                    final updatedGift = gift.copyWith(
-                                      name: updatedGiftData['name'],
-                                      description: updatedGiftData['description'],
-                                      category: updatedGiftData['category'],
-                                      price: updatedGiftData['price'],
-                                    );
-                                    await updateGift(updatedGift);
-                                  },
-                                ),
-                              ),
-                            );
-                          },
+      body: gifts.isEmpty
+          ? Center(child: Text('No gifts available for this event.'))
+          : ListView.builder(
+        itemCount: gifts.length,
+        itemBuilder: (context, index) {
+          final gift = gifts[index];
+          final isPledged = gift.status == 'Pledged';
+
+          return Card(
+            elevation: 4,
+            margin: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ListTile(
+              leading: Icon(
+                Icons.card_giftcard,
+                color: isPledged ? Colors.orange : Colors.blue,
+              ),
+              title: Text(
+                gift.name,
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'Category: ${gift.category}\nStatus: ${gift.status}\nPublished: ${gift.published ? "Yes" : "No"}',
+              ),
+              trailing: isOwner
+                  ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.edit, color: Colors.blue),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GiftDetailsPage(
+                            gift: gift.toMap(),
+                            onSave: (updatedGiftData) async {
+                              final updatedGift = gift.copyWith(
+                                name: updatedGiftData['name'],
+                                description:
+                                updatedGiftData['description'],
+                                category: updatedGiftData['category'],
+                                price: updatedGiftData['price'],
+                              );
+                              await updateGift(updatedGift);
+                            },
+                          ),
                         ),
-                        Switch(
-                          value: gift.published,
-                          onChanged: (_) => togglePublishGift(gift),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete),
-                          onPressed: () => deleteGift(gift.id!),
-                        ),
-                      ],
-                    )
-                        : ElevatedButton(
-                      onPressed: isPledged
-                          ? null // Disable button if already pledged
-                          : () => pledgeGift(gift),
-                      child: Text(isPledged ? "Pledged" : "Pledge"),
-                    ),
+                      );
+                    },
                   ),
-                );
-              },
+                  Switch(
+                    value: gift.published,
+                    onChanged: (_) => togglePublishGift(gift),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => deleteGift(gift.id!),
+                  ),
+                ],
+              )
+                  : ElevatedButton(
+                onPressed: isPledged
+                    ? null // Disable button if already pledged
+                    : () => pledgeGift(gift),
+                child: Text(isPledged ? "Pledged" : "Pledge"),
+              ),
             ),
-          ),
-          if (isOwner)
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => GiftDetailsPage(
-                        gift: {
-                          'id': null, // ID will be generated dynamically
-                          'name': '',
-                          'description': '',
-                          'category': '',
-                          'price': 0.0,
-                          'status': 'Available', // Default status set to "Available"
-                        },
-                        onSave: (newGiftData) async {
-                          final newGift = GiftModel(
-                            id: newGiftData['id'], // Use generated ID
-                            name: newGiftData['name'],
-                            description: newGiftData['description'],
-                            category: newGiftData['category'],
-                            price: newGiftData['price'],
-                            status: 'Available', // Status always set to "Available"
-                            published: false,
-                            eventFirebaseId: widget.selectedEventId,
-                            userId: widget.userId,
-                          );
-                          await addGift(newGift);
-                        },
-                      ),
-                    ),
-                  );
-                } catch (e) {
-                  print('Error navigating to add gift: $e');
-                }
-              },
-              child: Text('Add New Gift'),
-            ),
-        ],
+          );
+        },
       ),
+      floatingActionButton: isOwner
+          ? FloatingActionButton(
+        onPressed: () async {
+          try {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GiftDetailsPage(
+                  gift: {
+                    'id': null, // ID will be generated dynamically
+                    'name': '',
+                    'description': '',
+                    'category': '',
+                    'price': 0.0,
+                    'status': 'Available', // Default status set to "Available"
+                  },
+                  onSave: (newGiftData) async {
+                    final newGift = GiftModel(
+                      id: newGiftData['id'], // Use generated ID
+                      name: newGiftData['name'],
+                      description: newGiftData['description'],
+                      category: newGiftData['category'],
+                      price: newGiftData['price'],
+                      status: 'Available', // Status always set to "Available"
+                      published: false,
+                      eventFirebaseId: widget.selectedEventId,
+                      userId: widget.userId,
+                    );
+                    await addGift(newGift);
+                  },
+                ),
+              ),
+            );
+          } catch (e) {
+            print('Error navigating to add gift: $e');
+          }
+        },
+        child: Icon(Icons.add),
+      )
+          : null, // Hide add button for non-owners
     );
   }
 }
