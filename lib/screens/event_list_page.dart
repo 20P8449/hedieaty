@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../controllers/event_controller.dart';
 import '../models/event_model.dart';
 import 'gift_list_page.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // To get the current user ID
+import 'package:project/services/notification_service.dart';
 
 class EventListPage extends StatefulWidget {
   final String userId; // User ID to filter events and gifts by user
@@ -23,6 +25,14 @@ class _EventListPageState extends State<EventListPage> {
   void initState() {
     super.initState();
     loadEvents();
+    NotificationService().initialize(FirebaseAuth.instance.currentUser!.uid, context);
+  }
+
+  @override
+  void dispose() {
+    // Dispose NotificationService
+    NotificationService().dispose();
+    super.dispose();
   }
 
   // Load events for the user and calculate upcoming events
@@ -151,7 +161,7 @@ class _EventListPageState extends State<EventListPage> {
                   ),
                 );
               },
-              trailing: isOwner
+              trailing: event.userId == widget.currentUserId // Only allow the owner to edit/delete/publish
                   ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

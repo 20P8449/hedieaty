@@ -3,6 +3,10 @@ import '../controllers/user_controller.dart';
 import 'event_list_page.dart';
 import 'my_pledged_gifts_page.dart';
 import 'package:project/views/signIn.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // To get the current user ID
+import 'package:project/services/notification_service.dart';
+
+
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -28,11 +32,14 @@ class _ProfilePageState extends State<ProfilePage>
       vsync: this,
     )..forward();
     loadUserProfile();
+
+    NotificationService().initialize(FirebaseAuth.instance.currentUser!.uid, context);
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    NotificationService().dispose();
     super.dispose();
   }
 

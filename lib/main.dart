@@ -56,10 +56,12 @@ class _MainNavigationState extends State<MainNavigation> {
   // Fetch notifications from friends
   Future<void> _loadFriendsNotifications() async {
     if (currentUserId == null) return; // If user is not authenticated, skip
-    List<FriendModel> friends = await _friendController.getFriends(currentUserId!);
+    List<FriendModel> friends = await _friendController.getFriends(
+        currentUserId!);
     setState(() {
       _friendsNotifications = friends
-          .map((friend) => "Your friend ${friend.friendId} added new events or gifts.")
+          .map((friend) => "Your friend ${friend
+          .friendId} added new events or gifts.")
           .toList();
     });
   }
@@ -74,7 +76,8 @@ class _MainNavigationState extends State<MainNavigation> {
           const begin = Offset(0.0, 1.0);
           const end = Offset.zero;
           const curve = Curves.easeInOut;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var tween = Tween(begin: begin, end: end).chain(
+              CurveTween(curve: curve));
           var offsetAnimation = animation.drive(tween);
 
           return SlideTransition(position: offsetAnimation, child: child);
@@ -104,7 +107,8 @@ class _MainNavigationState extends State<MainNavigation> {
       Center(child: Text("User not authenticated")),
     ProfilePage(),
     if (currentUserId != null)
-      MyPledgedGiftsPage(userId: currentUserId!) // Pass userId to MyPledgedGiftsPage
+      MyPledgedGiftsPage(
+          userId: currentUserId!) // Pass userId to MyPledgedGiftsPage
     else
       Center(child: Text("User not authenticated")),
   ];
@@ -151,31 +155,7 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          _pages[_selectedIndex],
-          Positioned(
-            right: 20,
-            bottom: 70,
-            child: GestureDetector(
-              onTap: () => _showNotifications(context),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  shape: BoxShape.circle,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Icon(
-                    Icons.notifications,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      body: _pages[_selectedIndex], // Display the selected page
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[

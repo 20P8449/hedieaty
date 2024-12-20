@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../controllers/gift_controller.dart';
 import '../models/gift_model.dart';
+import '../controllers/user_controller.dart'; // Import UserController
 import 'gift_details_page.dart';
+import 'package:project/services/notification_service.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // To get the current user ID
 
 class GiftListPage extends StatefulWidget {
   final String selectedEventId; // Event ID for filtering gifts
@@ -22,6 +25,7 @@ class GiftListPage extends StatefulWidget {
 
 class _GiftListPageState extends State<GiftListPage> {
   final GiftController _giftController = GiftController();
+  final UserController _userController = UserController(); // Instantiate UserController
   List<GiftModel> gifts = [];
   String sortCriteria = 'name'; // Default sorting criteria
 
@@ -29,6 +33,14 @@ class _GiftListPageState extends State<GiftListPage> {
   void initState() {
     super.initState();
     loadGifts();
+    NotificationService().initialize(FirebaseAuth.instance.currentUser!.uid, context);
+  }
+
+  @override
+  void dispose() {
+    // Dispose NotificationService
+    NotificationService().dispose();
+    super.dispose();
   }
 
   // Load gifts for the specific event and user
@@ -65,17 +77,6 @@ class _GiftListPageState extends State<GiftListPage> {
     return gifts;
   }
 
-  // Mark a gift as pledged
-  Future<void> pledgeGift(GiftModel gift) async {
-    try {
-      await _giftController.pledgeGift(gift, widget.currentUserId);
-      loadGifts();
-      print('Gift pledged successfully: ${gift.name}');
-    } catch (e) {
-      print('Error pledging gift: $e');
-    }
-  }
-
   // Add a new gift
   Future<void> addGift(GiftModel newGift) async {
     try {
@@ -86,13 +87,13 @@ class _GiftListPageState extends State<GiftListPage> {
     }
   }
 
-  // Update a gift
-  Future<void> updateGift(GiftModel gift) async {
+  // Delete a gift
+  Future<void> deleteGift(int id) async {
     try {
-      await _giftController.updateGift(gift);
+      await _giftController.deleteGift(id);
       loadGifts();
     } catch (e) {
-      print('Error updating gift: $e');
+      print('Error deleting gift: $e');
     }
   }
 
@@ -112,13 +113,50 @@ class _GiftListPageState extends State<GiftListPage> {
     }
   }
 
-  // Delete a gift
-  Future<void> deleteGift(int id) async {
+  // Mark a gift as pledged
+  Future<void> pledgeGift(GiftModel gift) async {
     try {
-      await _giftController.deleteGift(id);
+      // Pledge the gift
+      await _giftController.pledgeGift(gift, widget.currentUserId);
+
+      // Fetch the name of the pledging user
+      final userName = await _userController.getUserNameById(widget.currentUserId);
+
+      // Alert for Pledging a Gift with the user's real name
+      await _giftController.addNotificationToFirestore(
+          gift.userId, "Your gift '${gift.name}' has been pledged by $userName.");
+      await _giftController.addNotificationToSQLite(
+          gift.userId, "Your gift '${gift.name}' has been pledged by $userName.");
+      await _giftController.triggerNotification(
+          gift.userId, "Your gift '${gift.name}' has been pledged by $userName.");
+
+      // Reload the gifts to reflect updates
+      loadGifts();
+      print('Gift pledged successfully: ${gift.name}');
+    } catch (e) {
+      print('Error pledging gift: $e');
+    }
+  }
+
+  // Update a gift
+  Future<void> updateGift(GiftModel gift) async {
+    try {
+      await _giftController.updateGift(gift);
+
+      // Alert for Gift Status Changes
+      await _giftController.addNotificationToFirestore(
+          gift.userId,
+          "The status of your gift '${gift.name}' has been updated to '${gift.status}'.");
+      await _giftController.addNotificationToSQLite(
+          gift.userId,
+          "The status of your gift '${gift.name}' has been updated to '${gift.status}'.");
+      await _giftController.triggerNotification(
+          gift.userId,
+          "The status of your gift '${gift.name}' has been updated to '${gift.status}'.");
+
       loadGifts();
     } catch (e) {
-      print('Error deleting gift: $e');
+      print('Error updating gift: $e');
     }
   }
 
@@ -130,6 +168,13 @@ class _GiftListPageState extends State<GiftListPage> {
       appBar: AppBar(
         title: Text('Gifts for ${widget.selectedEventName}'),
         actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () {
+              loadGifts(); // Reload the gift list
+            },
+            tooltip: 'Refresh',
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               setState(() {

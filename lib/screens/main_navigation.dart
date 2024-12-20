@@ -60,7 +60,8 @@ class _MainNavigationState extends State<MainNavigation> {
       Center(child: Text("User not authenticated")),
     ProfilePage(), // Removed userId as ProfilePage doesn't require it
     if (currentUserId != null)
-      MyPledgedGiftsPage(userId: currentUserId!) // Pass userId to MyPledgedGiftsPage
+      MyPledgedGiftsPage(
+          userId: currentUserId!) // Pass userId to MyPledgedGiftsPage
     else
       Center(child: Text("User not authenticated")),
   ];
@@ -112,31 +113,7 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          _pages[_selectedIndex],
-          Positioned(
-            right: 20,
-            bottom: 70,
-            child: GestureDetector(
-              onTap: () => _showNotifications(context),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  shape: BoxShape.circle,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Icon(
-                    Icons.notifications,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      body: _pages[_selectedIndex], // Display the selected page
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         items: const <BottomNavigationBarItem>[

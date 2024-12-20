@@ -3,6 +3,8 @@ import '../controllers/gift_controller.dart';
 import '../controllers/event_controller.dart';
 import '../controllers/user_controller.dart';
 import '../models/gift_model.dart';
+import 'package:project/services/notification_service.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // To get the current user ID
 
 class MyPledgedGiftsPage extends StatefulWidget {
   final String userId; // User ID to filter gifts
@@ -25,6 +27,14 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
   void initState() {
     super.initState();
     loadPledgedGifts();
+    NotificationService().initialize(FirebaseAuth.instance.currentUser!.uid, context);
+  }
+
+  @override
+  void dispose() {
+    // Dispose NotificationService
+    NotificationService().dispose();
+    super.dispose();
   }
 
   // Fetch pledged gifts dynamically
@@ -66,6 +76,18 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
   Future<void> updatePledgedGift(GiftModel updatedGift) async {
     try {
       await _giftController.updateGift(updatedGift);
+
+      // Trigger notifications for updates on gift status
+      await _giftController.addNotificationToFirestore(
+          updatedGift.userId,
+          "The status of your pledged gift '${updatedGift.name}' has been updated to '${updatedGift.status}'.");
+      await _giftController.addNotificationToSQLite(
+          updatedGift.userId,
+          "The status of your pledged gift '${updatedGift.name}' has been updated to '${updatedGift.status}'.");
+      await _giftController.triggerNotification(
+          updatedGift.userId,
+          "The status of your pledged gift '${updatedGift.name}' has been updated to '${updatedGift.status}'.");
+
       loadPledgedGifts();
     } catch (e) {
       print('Error updating pledged gift: $e');
@@ -88,7 +110,18 @@ class _MyPledgedGiftsPageState extends State<MyPledgedGiftsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('My Pledged Gifts')),
+      appBar: AppBar(
+        title: Text('My Pledged Gifts'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () {
+              loadPledgedGifts();
+            },
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
       body: pledgedGifts.isEmpty
           ? Center(child: Text('No pledged gifts available.'))
           : ListView.builder(

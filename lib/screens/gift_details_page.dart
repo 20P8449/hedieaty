@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // To get the current user ID
+import 'package:project/services/notification_service.dart';
 
 class GiftDetailsPage extends StatefulWidget {
   final Map<String, dynamic> gift;
@@ -23,6 +25,7 @@ class _GiftDetailsPageState extends State<GiftDetailsPage>
   @override
   void initState() {
     super.initState();
+    NotificationService().initialize(FirebaseAuth.instance.currentUser!.uid, context);
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -46,6 +49,7 @@ class _GiftDetailsPageState extends State<GiftDetailsPage>
     _priceController.dispose();
     _photoLinkController.dispose(); // Dispose the new controller
     _animationController.dispose();
+    NotificationService().dispose();
     super.dispose();
   }
 
@@ -150,6 +154,29 @@ class _GiftDetailsPageState extends State<GiftDetailsPage>
                   ),
                 ),
                 SizedBox(height: 20),
+                // Display Gift Status (Read-only)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Gift Status:',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      widget.gift['status'] ?? 'Available', // Display current status
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: widget.gift['status'] == 'Pledged'
+                            ? Colors.orange
+                            : Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
                 ElevatedButton.icon(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
@@ -159,7 +186,7 @@ class _GiftDetailsPageState extends State<GiftDetailsPage>
                         'category': _categoryController.text.trim(),
                         'price': double.tryParse(_priceController.text.trim()),
                         'photoLink': _photoLinkController.text.trim(), // Save the photo link
-                        'status': 'Available', // Always set status to 'Available'
+                        'status': widget.gift['status'] ?? 'Available', // Keep the current status
                       };
                       widget.onSave(updatedGift);
                       showSnackBar('Gift details saved successfully!');

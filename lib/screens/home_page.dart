@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../controllers/event_controller.dart'; // Correctly importing the EventController
 import '../services/friend_service.dart'; // Service to fetch friends from Firestore
+import '../services/notification_service.dart'; // Ensure NotificationService exists
+import '../controllers/friend_controller.dart'; // Ensure FriendController exists
+import '../controllers/user_controller.dart'; // Ensure UserController exists
 import '../screens/event_list_page.dart'; // Correct import of EventListPage
-import 'package:firebase_auth/firebase_auth.dart'; // To get the current user ID
 
 class HomePage extends StatefulWidget {
   @override
@@ -13,6 +16,8 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> friends = [];
   bool isLoading = true;
   late EventController _eventController; // Correctly initializing EventController
+  final FriendController _friendController = FriendController(); // Initialize FriendController
+  final UserController _userController = UserController(); // Initialize UserController
   Map<String, int> upcomingEventsCount = {}; // Store upcoming events count for each friend
 
   @override
@@ -20,6 +25,16 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _eventController = EventController(); // Initialize EventController instance
     fetchFriends();
+
+    // Initialize NotificationService
+    NotificationService().initialize(FirebaseAuth.instance.currentUser!.uid, context);
+  }
+
+  @override
+  void dispose() {
+    // Dispose NotificationService
+    NotificationService().dispose();
+    super.dispose();
   }
 
   Future<void> fetchFriends() async {
@@ -32,8 +47,7 @@ class _HomePageState extends State<HomePage> {
       }
 
       // Fetch friends from Firestore via FriendService
-      final fetchedFriends =
-      await FriendService.getFriendsFromFirestore(currentUserId);
+      final fetchedFriends = await FriendService.getFriendsFromFirestore(currentUserId);
 
       Map<String, int> tempUpcomingEventsCount = {};
 
@@ -56,6 +70,32 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> addFriend(String friendUid, String friendName) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception("User is not authenticated.");
+      }
+
+      // Add friend logic
+      await _friendController.addFriendToFirestore(currentUser.uid, friendUid);
+      await _friendController.addFriendToFirestore(friendUid, currentUser.uid);
+      await _friendController.addFriendToSQLite(currentUser.uid, friendUid);
+      await _userController.addNotification(
+        friendUid,
+        '${currentUser.displayName ?? "Someone"} added you as a friend!',
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Friend $friendName added successfully!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error adding friend: $e")),
+      );
     }
   }
 
@@ -100,7 +140,10 @@ class _HomePageState extends State<HomePage> {
             onPressed: () {
               showSearch(
                 context: context,
-                delegate: FriendSearchDelegate(),
+                delegate: FriendSearchDelegate(
+                  onAddFriend: (friendUid, friendName) =>
+                      addFriend(friendUid, friendName),
+                ),
               );
             },
           ),
@@ -161,21 +204,14 @@ class _HomePageState extends State<HomePage> {
                       "${friend['mobile']}\nUpcoming Events: $upcomingCount", // Display count
                       style: TextStyle(fontSize: 14),
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            removeFriend(friend['id']);
-                          },
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.redAccent),
-                          child: Text(
-                            "Remove Friend",
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ],
+                    trailing: ElevatedButton(
+                      onPressed: () => removeFriend(friend['id']),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent),
+                      child: Text(
+                        "Remove Friend",
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ),
                     onTap: () {
                       // Navigate to friend's event list with userId
@@ -202,6 +238,10 @@ class _HomePageState extends State<HomePage> {
 }
 
 class FriendSearchDelegate extends SearchDelegate {
+  final Function(String friendUid, String friendName) onAddFriend;
+
+  FriendSearchDelegate({required this.onAddFriend});
+
   @override
   List<Widget>? buildActions(BuildContext context) {
     return [
@@ -247,32 +287,7 @@ class FriendSearchDelegate extends SearchDelegate {
                 title: Text(user['name']),
                 subtitle: Text(user['mobile']),
                 trailing: ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      final currentUserId =
-                          FirebaseAuth.instance.currentUser?.uid;
-
-                      if (currentUserId == null) {
-                        throw Exception("User not authenticated.");
-                      }
-
-                      await FriendService.addFriend(
-                        currentUserId,
-                        user['id'],
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content:
-                          Text("${user['name']} has been added as a friend"),
-                        ),
-                      );
-                    } catch (e) {
-                      print("Error adding friend: $e");
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Failed to add friend")),
-                      );
-                    }
-                  },
+                  onPressed: () => onAddFriend(user['id'], user['name']),
                   child: Text("Add Friend"),
                 ),
               ),

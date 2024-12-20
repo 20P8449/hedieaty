@@ -277,6 +277,55 @@ class GiftController {
     }
   }
 
+  //This function adds a notification for the specified user in Firestore.
+  Future<void> addNotificationToFirestore(String userId, String message) async {
+    try {
+      await _firestore.collection('notifications').add({
+        'userId': userId,
+        'message': message,
+        'isRead': false,
+        'timestamp': FieldValue.serverTimestamp(), // For sorting notifications
+      });
+      print("Notification added for user: $userId with message: $message");
+    } catch (e) {
+      print("Error adding notification to Firestore: $e");
+      throw Exception("Error adding notification to Firestore.");
+    }
+  }
+
+  //This function adds a notification to the local SQLite database for offline access.
+  Future<void> addNotificationToSQLite(String userId, String message) async {
+    final db = await _dbHelper.database;
+    try {
+      await db.insert(
+        'notifications',
+        {
+          'userId': userId,
+          'message': message,
+          'isRead': 0, // 0 indicates the notification is unread
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      print("Notification added to SQLite for user: $userId");
+    } catch (e) {
+      print("Error adding notification to SQLite: $e");
+      throw Exception("Error adding notification to SQLite.");
+    }
+  }
+
+  //This function combines Firestore and SQLite notifications to ensure they are stored both online and offline.
+  Future<void> triggerNotification(String userId, String message) async {
+    try {
+      await addNotificationToFirestore(userId, message);
+      await addNotificationToSQLite(userId, message);
+      print("Notification triggered for user: $userId");
+    } catch (e) {
+      print("Error triggering notification: $e");
+    }
+  }
+
+
   // Insert or update a gift in SQLite
   Future<void> _insertOrUpdateGift(GiftModel gift) async {
     final db = await _dbHelper.database;

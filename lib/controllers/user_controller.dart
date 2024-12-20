@@ -1,10 +1,12 @@
 import '../services/auth_service.dart';
 import '../database/db_helper.dart';
 import '../models/user_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserController {
   final AuthService _authService = AuthService();
   final DBHelper _dbHelper = DBHelper();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Sign Up a New User
   Future<UserModel?> signUp(
@@ -129,6 +131,24 @@ class UserController {
       );
     } else {
       throw Exception('User not found.');
+    }
+  }
+
+  // Add a Notification for a User
+  Future<void> addNotification(String recipientUid, String message) async {
+    try {
+      final notification = {
+        'userId': recipientUid,
+        'message': message,
+        'isRead': false,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      await _firestore.collection('notifications').add(notification);
+      print("Notification added for user $recipientUid: $message");
+    } catch (e) {
+      print("Error adding notification: $e");
+      throw Exception("Error adding notification.");
     }
   }
 }

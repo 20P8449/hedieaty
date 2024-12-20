@@ -12,6 +12,7 @@ class NotificationService {
 
   late StreamSubscription _subscription;
 
+  /// Initialize notifications listener for a specific user
   void initialize(String userId, BuildContext context) {
     _subscription = FirebaseFirestore.instance
         .collection('notifications')
@@ -32,18 +33,35 @@ class NotificationService {
     });
   }
 
+  /// Show a notification using Flushbar
   void _showNotification(BuildContext context, String message) {
-      Flushbar(
-        message: message,
-        backgroundColor: Colors.amber,
-        icon: const Icon(Icons.notifications, color: Colors.black),
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(8),
-        borderRadius: BorderRadius.circular(10),
-        flushbarPosition: FlushbarPosition.TOP, // Display at the top
-      ).show(context);
+    Flushbar(
+      message: message,
+      backgroundColor: Colors.amber,
+      icon: const Icon(Icons.notifications, color: Colors.black),
+      duration: const Duration(seconds: 3),
+      margin: const EdgeInsets.all(8),
+      borderRadius: BorderRadius.circular(10),
+      flushbarPosition: FlushbarPosition.TOP, // Display at the top
+    ).show(context);
   }
 
+  /// Send a notification to a specific user
+  Future<void> sendNotification(String userId, String message) async {
+    try {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'userId': userId,
+        'message': message,
+        'isRead': false,
+        'timestamp': FieldValue.serverTimestamp(), // Optional timestamp
+      });
+    } catch (e) {
+      print('Error sending notification: $e');
+      throw Exception('Failed to send notification');
+    }
+  }
+
+  /// Dispose of the notifications listener
   void dispose() {
     _subscription.cancel();
   }
